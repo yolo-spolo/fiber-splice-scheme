@@ -105,7 +105,7 @@ npm run setup:check
 ```bash
 docker compose up -d          # PostgreSQL на localhost:5433
 npx prisma db push            # схема
-npx tsx prisma/seed.ts        # демо-объект и муфта с 12 сварками (необязательно)
+npm run db:seed               # демо-объект и муфта с 12 сварками (необязательно)
 npm run dev
 ```
 
