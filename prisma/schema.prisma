@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Объект / заказ. Верхний уровень: адрес, заказчик, договор.
+model Project {
+  id        String    @id @default(cuid())
+  name      String
+  customer  String?
+  address   String?
+  contract  String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closures  Closure[]
+  shares    ShareLink[]
+
+  @@index([name])
+}
+
+enum ClosureStatus {
+  DRAFT
+  IN_PROGRESS
+  DONE
+}
+
+/// Муфта, кросс, ОРШ или распределительный бокс.
+model Closure {
+  id        String        @id @default(cuid())
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number    String
+  kind      String        @default("МУФТА")
+  model     String?
+  status    ClosureStatus @default(DRAFT)
+  address   String?
+  city      String?
+  street    String?
+  house     String?
+  lat       Float?
+  lng       Float?
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  cables    Cable[]
+  cassettes Cassette[]
+  splices   Splice[]
+  photos    Photo[]
+  splitters Splitter[]
+  shares    ShareLink[]
+
+  @@unique([projectId, number])
+  @@index([projectId])
+}
+
+/// Кассета внутри муфты. Ёмкость по умолчанию 12.
+model Cassette {
+  id        String    @id @default(cuid())
+  closureId String
+  closure   Closure   @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  number    Int
+  capacity  Int       @default(12)
+  label     String?
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  splices   Splice[]
+  photos    Photo[]
+  splitters Splitter[]
+
+  @@unique([closureId, number])
+  @@index([closureId])
+}
+
+enum CableOwnership {
+  OURS
+  FOREIGN
+}
+
+/// Кабель, входящий в муфту.
+model Cable {
+  id             String         @id @default(cuid())
+  closureId      String
+  closure        Closure        @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  label          String
+  type           String?
+  fiberCount     Int
+  moduleCount    Int            @default(1)
+  moduleCapacity Int            @default(12)
+  colorScheme    String         @default("TIA598")
+  colorOrder     Int[]          @default([])
+  fromLocation   String?
+  toLocation     String?
+  ownership      CableOwnership @default(OURS)
+  sheathColor    String?
+  order          Int            @default(0)
+  notes          String?
+  createdAt      DateTime       @default(now())
+
+  fibers Fiber[]
+
+  @@unique([closureId, label])
+  @@index([closureId])
+}
+
+enum FiberStatus {
+  FREE
+  SPLICED
+  TRANSIT
+  DAMAGED
+}
+
+/// Волокно: кабель -> модуль -> позиция. Адресация триадой, не сквозным номером.
+model Fiber {
+  id          String      @id @default(cuid())
+  cableId     String
+  cable       Cable       @relation(fields: [cableId], references: [id], onDelete: Cascade)
+  moduleIndex Int         @default(1)
+  position    Int
+  colorCode   Int
+  status      FiberStatus @default(FREE)
+  label       String?
+  notes       String?
+
+  splicesA Splice[] @relation("FiberA")
+  splicesB Splice[] @relation("FiberB")
+
+  @@unique([cableId, moduleIndex, position])
+  @@index([cableId])
+}
+
+enum SpliceKind {
+  FUSION
+  MECHANICAL
+  PIGTAIL
+  SPLITTER
+  TRANSIT
+}
+
+/// Сварка — ребро между двумя волокнами. Основа всей схемы.
+model Splice {
+  id         String    @id @default(cuid())
+  closureId  String
+  closure    Closure   @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  cassetteId String?
+  cassette   Cassette? @relation(fields: [cassetteId], references: [id], onDelete: SetNull)
+
+  fiberAId String
+  fiberA   Fiber  @relation("FiberA", fields: [fiberAId], references: [id], onDelete: Cascade)
+  fiberBId String
+  fiberB   Fiber  @relation("FiberB", fields: [fiberBId], references: [id], onDelete: Cascade)
+
+  kind      SpliceKind @default(FUSION)
+  lossDb    Float?
+  splitterId String?
+  splitter  Splitter?  @relation(fields: [splitterId], references: [id], onDelete: SetNull)
+  note      String?
+  splicedAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([fiberAId, fiberBId])
+  @@index([closureId])
+  @@index([cassetteId])
+}
+
+/// Сплиттер: один вход -> N выходов (выходы — строки Splice с этим splitterId).
+model Splitter {
+  id         String    @id @default(cuid())
+  closureId  String
+  closure    Closure   @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  cassetteId String?
+  cassette   Cassette? @relation(fields: [cassetteId], references: [id], onDelete: SetNull)
+  label      String
+  ratio      String    @default("1:8")
+  notes      String?
+  createdAt  DateTime  @default(now())
+
+  splices Splice[]
+
+  @@index([closureId])
+}
+
+/// Фото муфты или кассеты. pins: [{x,y,refType,refId,label}] — координаты 0..1.
+model Photo {
+  id        String    @id @default(cuid())
+  closureId String
+  closure   Closure   @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  cassetteId String?
+  cassette  Cassette? @relation(fields: [cassetteId], references: [id], onDelete: SetNull)
+  file      String
+  thumb     String
+  width     Int
+  height    Int
+  caption   String?
+  pins      Json      @default("[]")
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  @@index([closureId])
+}
+
+/// Публичная read-only ссылка для заказчика.
+model ShareLink {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  projectId String?
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  closureId String?
+  closure   Closure?  @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  expiresAt DateTime?
+  revokedAt DateTime?
+  views     Int       @default(0)
+  createdAt DateTime  @default(now())
+}
+
+/// Настройки одиночного пользователя: палитра, реквизиты, пороги.
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Тип кабеля с параметрами по умолчанию:
+/// «Воздушный подвесной» → 8 волокон, 1 модуль по 12.
+model CableTypePreset {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  fiberCount     Int      @default(8)
+  moduleCount    Int      @default(1)
+  moduleCapacity Int      @default(12)
+  colorScheme    String   @default("TIA598")
+  colorOrder     Int[]    @default([])
+  ownership      String   @default("OURS")
+  sheathColor    String?
+  note           String?
+  isBuiltIn      Boolean  @default(false)
+  order          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

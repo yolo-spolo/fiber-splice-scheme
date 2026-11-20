@@ -1,0 +1,19 @@
+[Unit]
+Description=Fiber splice web app
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/fiber-splice-scheme
+EnvironmentFile=/opt/fiber-splice-scheme/.env
+Environment=NODE_ENV=production
+ExecStart=/opt/fiber-splice-scheme/node_modules/.bin/next start -H 0.0.0.0 -p 3000
+Restart=always
+RestartSec=5
+User=fiber
+StandardOutput=append:/var/log/fiber.log
+StandardError=append:/var/log/fiber.log
+
+[Install]
+WantedBy=multi-user.target

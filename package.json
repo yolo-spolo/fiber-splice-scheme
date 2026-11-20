@@ -1,0 +1,50 @@
+{
+  "name": "fiber-splice-scheme",
+  "version": "0.1.0",
+  "description": "Учёт оптических сварок в муфтах: схема, фото и документ для заказчика",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yolo-spolo/fiber-splice-scheme.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "setup:check": "node scripts/check-env.mjs",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@prisma/client": "6.3.1",
+    "next": "15.1.6",
+    "qrcode": "^1.5.4",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "sharp": "0.33.5",
+    "zod": "3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/node": "22.10.7",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "playwright": "^1.49.1",
+    "postcss": "8.5.1",
+    "prisma": "6.3.1",
+    "tailwindcss": "^4.3.5",
+    "tsx": "4.19.2",
+    "typescript": "5.7.3",
+    "vitest": "3.0.4"
+  }
+}

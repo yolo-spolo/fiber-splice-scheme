@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fiber-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fiber
+      POSTGRES_PASSWORD: fiber
+      POSTGRES_DB: fiber
+    ports:
+      - "5433:5432"
+    volumes:
+      - fiber-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiber -d fiber"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fiber-pgdata:
