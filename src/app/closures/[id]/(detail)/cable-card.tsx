@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { deleteCable } from "@/lib/actions/cables";
 import { setFiberStatus } from "@/lib/actions/splices";
-import { colorByCode } from "@/lib/colors";
+import { colorByCode, moduleColorCode, swatchBackground } from "@/lib/colors";
 import type { CableWithFibers } from "@/lib/closure-data";
 import { FIBER_STATUS_LABELS } from "@/lib/labels";
 import { EditCableDialog } from "./edit-cable-dialog";
@@ -114,8 +114,21 @@ export function CableCard({
         <div className="space-y-3 border-t border-[var(--color-line)] px-4 py-3">
           {[...modules.entries()].map(([moduleIndex, fibers]) => (
             <div key={moduleIndex}>
-              <div className="mb-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-[var(--color-ink-400)]">
-                Модуль {moduleIndex}
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-[2px] border border-black/30"
+                  style={swatchBackground(
+                    moduleColorCode(moduleIndex, cable.colorScheme, cable.moduleColors),
+                  )}
+                />
+                <span className="text-[11.5px] font-semibold uppercase tracking-wide text-[var(--color-ink-500)]">
+                  Модуль {moduleIndex}
+                </span>
+                <span className="text-[10.5px] text-[var(--color-ink-400)]">
+                  {colorByCode(
+                    moduleColorCode(moduleIndex, cable.colorScheme, cable.moduleColors),
+                  ).name.toLowerCase()}
+                </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {fibers.map((fiber) => {
@@ -232,6 +245,7 @@ export function CableCard({
             moduleCapacity: cable.moduleCapacity,
             colorScheme: cable.colorScheme,
             colorOrder: cable.colorOrder,
+            moduleColors: cable.moduleColors,
             fromLocation: cable.fromLocation,
             toLocation: cable.toLocation,
             ownership: cable.ownership,

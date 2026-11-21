@@ -6,6 +6,8 @@ import {
   FIBER_COLORS,
   FIBER_COLORS_STRIPED,
   isColorScheme,
+  moduleColorCode,
+  moduleColorCodes,
   schemeOrder,
 } from "./colors";
 
@@ -67,5 +69,31 @@ describe("цветовка", () => {
 
   it("базовая палитра содержит 12 цветов", () => {
     expect(FIBER_COLORS).toHaveLength(12);
+  });
+});
+
+describe("цвета модулей", () => {
+  it("идёт по порядку стандарта", () => {
+    expect(moduleColorCodes(4)).toEqual([0, 1, 2, 3]);
+    expect(colorByCode(moduleColorCode(2)).name).toBe("Оранжевый");
+  });
+
+  it("после дюжины берёт цвета с полосой", () => {
+    const codes = moduleColorCodes(14);
+    expect(codes[11]).toBe(11);
+    expect(codes[12]).toBe(12);
+    expect(colorByCode(codes[12]).striped).toBe(true);
+  });
+
+  it("уважает ручной цвет модуля", () => {
+    expect(moduleColorCodes(3, "TIA598", [6, -1, -1])).toEqual([6, 1, 2]);
+  });
+
+  it("«все белые» не делает трубки белыми", () => {
+    expect(moduleColorCodes(3, "ALL_WHITE")).toEqual([0, 1, 2]);
+  });
+
+  it("пустой кабель не даёт цветов", () => {
+    expect(moduleColorCodes(0)).toEqual([]);
   });
 });

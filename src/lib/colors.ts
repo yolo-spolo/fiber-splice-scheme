@@ -113,6 +113,39 @@ export function colorByCode(code: number): FiberColor {
   return ALL_FIBER_COLORS[((code % 24) + 24) % 24];
 }
 
+/**
+ * Цвета модулей (трубок). Порядок тот же, что у жил: первый модуль синий,
+ * второй оранжевый и так далее. После 12-го идут те же цвета с полосой —
+ * так маркируют трубки в кабелях на 24+ модуля.
+ *
+ * overrides — цвета, назначенные вручную: -1 (или пусто) — авто, 0..23 — код цвета.
+ */
+export function moduleColorCodes(
+  moduleCount: number,
+  scheme = "TIA598",
+  overrides: number[] = [],
+): number[] {
+  const count = Math.max(0, Math.floor(moduleCount) || 0);
+  // «Все белые» относится к жилам: трубки всё равно маркируют цветами,
+  // иначе модули не отличить друг от друга.
+  const order = schemeOrder(scheme === "ALL_WHITE" ? "TIA598" : scheme);
+  return Array.from({ length: count }, (_, index) => {
+    const manual = overrides[index];
+    if (Number.isInteger(manual) && manual >= 0 && manual < 24) return manual;
+    const base = order[index % order.length];
+    return index >= order.length ? base + 12 : base;
+  });
+}
+
+/** Цвет одного модуля по его номеру (1 — первый). */
+export function moduleColorCode(
+  moduleIndex: number,
+  scheme = "TIA598",
+  overrides: number[] = [],
+): number {
+  return moduleColorCodes(Math.max(1, moduleIndex), scheme, overrides)[moduleIndex - 1] ?? 0;
+}
+
 /** Позиция внутри модуля (1..12) -> код цвета по выбранной цветовке. */
 export function colorCodeForPosition(position: number, scheme = "TIA598"): number {
   const order = schemeOrder(scheme);
@@ -127,6 +160,31 @@ export function colorName(code: number): string {
 export function colorLabel(code: number): string {
   const color = colorByCode(code);
   return color.striped ? `${color.name} (${color.short.toLowerCase()})` : color.name.toLowerCase();
+}
+
+/** Тёмный ли цвет — чтобы подобрать читаемый текст поверх плашки. */
+export function isDarkHex(hex: string): boolean {
+  const value = hex.replace("#", "");
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.6;
+}
+
+/**
+ * Фон плашки цвета. Полосатые цвета (13–24) получают диагональную штриховку:
+ * на ч/б печати и для дальтоников это единственный способ отличить их
+ * от первой дюжины.
+ */
+export function swatchBackground(code: number) {
+  const color = colorByCode(code);
+  return {
+    background: color.hex,
+    backgroundImage: color.striped
+      ? "repeating-linear-gradient(45deg, rgba(0,0,0,.55) 0 2px, transparent 2px 5px)"
+      : undefined,
+    color: isDarkHex(color.hex) ? "#fff" : "#111827",
+  };
 }
 
 /** «Кабель / модуль 2 / волокно 5 (зелёный)» — единый формат подписи волокна. */

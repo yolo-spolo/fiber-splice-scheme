@@ -58,23 +58,23 @@ export default async function ClosureLayout({
       </div>
 
       {(closure.lat != null || closure.city) && (
-        <div className="mb-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="card px-3.5 py-2.5">
-            <div className="text-[10.5px] uppercase tracking-wide text-[var(--color-ink-400)]">
-              Почтовый адрес
-            </div>
-            <div className="mt-0.5 text-[13.5px] font-medium">
-              {formatPostalAddress(closure) ?? "Не указан"}
-            </div>
+        <div className="mb-4 space-y-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-0.5 text-[12.5px]">
+            <span className="text-[10.5px] uppercase tracking-wide text-[var(--color-ink-400)]">
+              Адрес
+            </span>
+            <span className="min-w-0 break-words font-medium">
+              {formatPostalAddress(closure) ?? "не указан"}
+            </span>
             {closure.address && (
-              <div className="mt-1 text-[12px] text-[var(--color-ink-500)]">
-                Ориентир: {closure.address}
-              </div>
+              <span className="min-w-0 break-words text-[var(--color-ink-500)]">
+                · ориентир: {closure.address}
+              </span>
             )}
             {closure.lat == null && (
-              <div className="mt-1 text-[11.5px] text-[var(--color-ink-400)]">
-                Координаты не заданы — карта появится после заполнения
-              </div>
+              <span className="text-[11.5px] text-[var(--color-ink-400)]">
+                · координаты не заданы, карта появится после заполнения
+              </span>
             )}
           </div>
           {closure.lat != null && closure.lng != null && (
@@ -83,7 +83,6 @@ export default async function ClosureLayout({
               lng={closure.lng}
               label={`Муфта №${closure.number}`}
               address={formatPostalAddress(closure)}
-              height={150}
             />
           )}
         </div>

@@ -31,6 +31,30 @@ const colorSchemeSchema = z
   .optional()
   .transform((value) => (value && isColorScheme(value) ? value : "TIA598"));
 
+/**
+ * Цвета модулей из формы. -1 — «авто по схеме», 0..23 — назначено вручную.
+ * Пустая строка означает «все модули по стандарту».
+ */
+const moduleColorsSchema = z
+  .string()
+  .optional()
+  .transform((raw, ctx) => {
+    if (!raw) return [] as number[];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) throw new Error("not array");
+      const codes = parsed.map((value) => Number(value));
+      const valid = codes.every(
+        (value) => Number.isInteger(value) && value >= -1 && value < 24,
+      );
+      if (!valid) throw new Error("bad values");
+      return codes;
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Некорректные цвета модулей" });
+      return z.NEVER;
+    }
+  });
+
 const moduleCapacitySchema = z
   .coerce
   .number()
@@ -43,11 +67,20 @@ const cableSchema = z.object({
   closureId: z.string().min(1),
   label: z.string().trim().min(1, "Укажите метку кабеля").max(60),
   type: z.string().trim().max(60).optional(),
-  fiberCount: z.coerce.number().int().min(1).max(1152),
-  moduleCount: z.coerce.number().int().min(1, "Модулей должно быть хотя бы 1").max(96),
+  fiberCount: z.coerce
+    .number({ message: "Укажите количество волокон" })
+    .int("Волокон должно быть целое число")
+    .min(1, "Волокон должно быть хотя бы 1")
+    .max(1152, "Не больше 1152 волокон"),
+  moduleCount: z.coerce
+    .number({ message: "Укажите количество модулей" })
+    .int("Модулей должно быть целое число")
+    .min(1, "Модулей должно быть хотя бы 1")
+    .max(96, "Не больше 96 модулей"),
   moduleCapacity: moduleCapacitySchema,
   colorScheme: colorSchemeSchema,
   colorOrder: colorOrderSchema,
+  moduleColors: moduleColorsSchema,
   fromLocation: z.string().trim().max(120).optional(),
   toLocation: z.string().trim().max(120).optional(),
   ownership: z.enum(["OURS", "FOREIGN"]).optional(),
@@ -94,6 +127,7 @@ export async function createCable(formData: FormData) {
       moduleCapacity: d.moduleCapacity,
       colorScheme: d.colorScheme,
       colorOrder: d.colorOrder,
+      moduleColors: d.moduleColors,
       fromLocation: nullify(d.fromLocation),
       toLocation: nullify(d.toLocation),
       ownership: d.ownership ?? "OURS",
@@ -117,6 +151,7 @@ export async function updateCable(id: string, formData: FormData) {
       moduleCapacity: moduleCapacitySchema.optional(),
       colorScheme: colorSchemeSchema,
       colorOrder: colorOrderSchema,
+      moduleColors: moduleColorsSchema,
       fromLocation: z.string().trim().max(120).optional(),
       toLocation: z.string().trim().max(120).optional(),
       ownership: z.enum(["OURS", "FOREIGN"]).optional(),
@@ -171,6 +206,7 @@ export async function updateCable(id: string, formData: FormData) {
         type: nullify(d.type),
         colorScheme: d.colorScheme ?? cable.colorScheme,
         colorOrder: d.colorOrder ?? cable.colorOrder,
+        moduleColors: d.moduleColors ?? cable.moduleColors,
         fromLocation: nullify(d.fromLocation),
         toLocation: nullify(d.toLocation),
         ownership: d.ownership ?? "OURS",
@@ -257,6 +293,7 @@ export async function updateCable(id: string, formData: FormData) {
         moduleCount: nextModuleCount,
         colorScheme: d.colorScheme ?? cable.colorScheme,
         colorOrder: d.colorOrder ?? cable.colorOrder,
+        moduleColors: d.moduleColors ?? cable.moduleColors,
         fromLocation: nullify(d.fromLocation),
         toLocation: nullify(d.toLocation),
         ownership: d.ownership ?? "OURS",

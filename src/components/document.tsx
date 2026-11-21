@@ -1,4 +1,10 @@
-import { colorByCode, FIBER_COLORS } from "@/lib/colors";
+import {
+  colorByCode,
+  colorsForScheme,
+  FIBER_COLORS,
+  moduleColorCodes,
+  swatchBackground,
+} from "@/lib/colors";
 import { SPLICE_KIND_LABELS, STATUS_LABELS } from "@/lib/labels";
 import type { ClosureData } from "@/lib/closure-data";
 import { SpliceScheme } from "@/components/splice-scheme";
@@ -108,14 +114,28 @@ export function SpliceDocument({
               <div className="mt-0.5 text-[10.5px] text-[var(--color-ink-500)]">
                 {cable.fromLocation ?? "—"} → {cable.toLocation ?? "—"}
               </div>
-              <span className="mt-1 flex flex-wrap gap-[2px]">
-                {Array.from({ length: Math.min(cable.moduleCapacity, 24) }, (_, i) => (
-                  <span
-                    key={i}
-                    className="h-[9px] w-[9px] border border-black/20"
-                    style={{ background: colorByCode(i).hex }}
-                  />
-                ))}
+              <span className="mt-1 flex flex-wrap items-center gap-[2px]">
+                {moduleColorCodes(cable.moduleCount, cable.colorScheme, cable.moduleColors).map(
+                  (code, i) => (
+                    <span
+                      key={`m${i}`}
+                      className="flex h-[13px] min-w-[13px] items-center justify-center border border-black/25 text-[7.5px] font-bold tabular-nums"
+                      style={swatchBackground(code)}
+                    >
+                      {i + 1}
+                    </span>
+                  ),
+                )}
+                <span className="mx-1 text-[9px] text-[var(--color-ink-400)]">жилы:</span>
+                {colorsForScheme(cable.colorScheme, cable.moduleCapacity, cable.colorOrder)
+                  .slice(0, 24)
+                  .map((code, i) => (
+                    <span
+                      key={`f${i}`}
+                      className="h-[9px] w-[9px] border border-black/20"
+                      style={swatchBackground(code)}
+                    />
+                  ))}
               </span>
             </li>
           ))}
@@ -129,7 +149,7 @@ export function SpliceDocument({
               <Th>Волокон</Th>
               <Th>Модули</Th>
               <Th>Направление</Th>
-              <Th>Цвета волокон</Th>
+              <Th>Цвета модулей</Th>
             </tr>
           </thead>
           <tbody>
@@ -151,11 +171,25 @@ export function SpliceDocument({
                 </Td>
                 <Td>
                   <span className="flex flex-wrap gap-[2px]">
-                    {Array.from({ length: Math.min(cable.moduleCapacity, 24) }, (_, i) => (
+                    {moduleColorCodes(cable.moduleCount, cable.colorScheme, cable.moduleColors).map((code, i) => (
+                      <span
+                        key={i}
+                        className="flex h-[13px] min-w-[13px] items-center justify-center border border-black/25 text-[7.5px] font-bold tabular-nums"
+                        style={swatchBackground(code)}
+                        title={`Модуль ${i + 1} — ${colorByCode(code).name}`}
+                      >
+                        {i + 1}
+                      </span>
+                    ))}
+                  </span>
+                  <span className="mt-0.5 flex flex-wrap gap-[2px]">
+                    {colorsForScheme(cable.colorScheme, cable.moduleCapacity, cable.colorOrder)
+                      .slice(0, 24)
+                      .map((code, i) => (
                       <span
                         key={i}
                         className="h-[9px] w-[9px] border border-black/20"
-                        style={{ background: colorByCode(i).hex }}
+                        style={swatchBackground(code)}
                       />
                     ))}
                   </span>
@@ -192,6 +226,9 @@ export function SpliceDocument({
                   id: c.id,
                   label: c.label,
                   order: c.order,
+                  moduleCount: c.moduleCount,
+                  colorScheme: c.colorScheme,
+                  moduleColors: c.moduleColors,
                   fibers: c.fibers.map((f) => ({
                     id: f.id,
                     moduleIndex: f.moduleIndex,

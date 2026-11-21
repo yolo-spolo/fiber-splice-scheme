@@ -17,6 +17,9 @@ export default async function SplicePage({ params }: { params: Promise<{ id: str
         label: cable.label,
         type: cable.type,
         ownership: cable.ownership,
+        moduleCount: cable.moduleCount,
+        colorScheme: cable.colorScheme,
+        moduleColors: cable.moduleColors,
         fibers: cable.fibers.map((f) => ({
           id: f.id,
           moduleIndex: f.moduleIndex,

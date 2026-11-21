@@ -20,6 +20,23 @@ const presetSchema = z.object({
     .string()
     .optional()
     .transform((value) => (value && isColorScheme(value) ? value : "TIA598")),
+  moduleColors: z
+    .string()
+    .optional()
+    .transform((raw, ctx) => {
+      if (!raw) return [] as number[];
+      try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error("not array");
+        const codes = parsed.map((value) => Number(value));
+        const valid = codes.every((value) => Number.isInteger(value) && value >= -1 && value < 24);
+        if (!valid) throw new Error("bad values");
+        return codes;
+      } catch {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Некорректные цвета модулей" });
+        return z.NEVER;
+      }
+    }),
   ownership: z.enum(["OURS", "FOREIGN"]).optional(),
   sheathColor: z.string().trim().max(40).optional(),
   note: z.string().trim().max(300).optional(),
@@ -49,6 +66,7 @@ export async function createCableType(formData: FormData) {
       moduleCount: data.moduleCount,
       moduleCapacity: data.moduleCapacity,
       colorScheme: data.colorScheme,
+      moduleColors: data.moduleColors,
       ownership: data.ownership ?? "OURS",
       sheathColor: nullify(data.sheathColor),
       note: nullify(data.note),
@@ -79,6 +97,7 @@ export async function updateCableType(id: string, formData: FormData) {
       moduleCount: data.moduleCount,
       moduleCapacity: data.moduleCapacity,
       colorScheme: data.colorScheme,
+      moduleColors: data.moduleColors,
       ownership: data.ownership ?? "OURS",
       sheathColor: nullify(data.sheathColor),
       note: nullify(data.note),

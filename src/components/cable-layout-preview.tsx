@@ -1,7 +1,7 @@
 "use client";
 
-import { colorByCode } from "@/lib/colors";
-import { cableLayout, plural } from "@/lib/cable-layout";
+import { colorByCode, moduleColorCodes, swatchBackground } from "@/lib/colors";
+import { cableLayout, layoutOptions, plural } from "@/lib/cable-layout";
 
 /**
  * Наглядный предпросмотр: сколько получится модулей, что заполнено,
@@ -11,14 +11,21 @@ export function CableLayoutPreview({
   fiberCount,
   moduleCount,
   moduleCapacity,
+  scheme = "TIA598",
+  moduleColors = [],
   compact = false,
+  onFix,
 }: {
   fiberCount: number;
   moduleCount: number;
   moduleCapacity: number;
+  scheme?: string;
+  moduleColors?: number[];
   compact?: boolean;
+  onFix?: (layout: { moduleCount: number; moduleCapacity: number }) => void;
 }) {
   const layout = cableLayout(fiberCount, moduleCount, moduleCapacity);
+  const tubes = moduleColorCodes(layout.moduleCount, scheme, moduleColors);
   const shown = Math.max(1, Math.min(layout.moduleCount, compact ? 3 : 8));
 
   const rows = Array.from({ length: shown }, (_, index) => {
@@ -46,7 +53,12 @@ export function CableLayoutPreview({
         <div className="mt-2 space-y-1">
           {rows.map((row) => (
             <div key={row.number} className="flex items-center gap-2">
-              <span className="w-[52px] shrink-0 text-[10.5px] text-[var(--color-ink-400)]">
+              <span className="flex w-[62px] shrink-0 items-center gap-1 text-[10.5px] text-[var(--color-ink-400)]">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-[2px] border border-black/25"
+                  style={swatchBackground(tubes[row.number - 1] ?? 0)}
+                  title={colorByCode(tubes[row.number - 1] ?? 0).name}
+                />
                 М{row.number}
               </span>
               <span className="flex flex-wrap gap-[2px]">
@@ -80,10 +92,21 @@ export function CableLayoutPreview({
       )}
 
       {!layout.fits && (
-        <p className="mt-1.5 text-[11px] font-medium text-[var(--color-danger)]">
-          Не помещается: {layout.overflow} {plural(layout.overflow, "волокно", "волокна", "волокон")}{" "}
-          сверх {layout.capacity}. Добавьте модуль или уменьшите количество волокон.
-        </p>
+        <div className="mt-1.5 space-y-1">
+          <p className="text-[11px] font-medium text-[var(--color-danger)]">
+            Не помещается: {layout.overflow} {plural(layout.overflow, "волокно", "волокна", "волокон")}{" "}
+            сверх {layout.capacity}. Добавьте модуль или уменьшите количество волокон.
+          </p>
+          {onFix && (
+            <button
+              type="button"
+              className="btn btn-ghost px-2 py-0.5 text-[11px] !text-[var(--color-danger)]"
+              onClick={() => onFix(layoutOptions(layout.fiberCount)[0] ?? { moduleCount: layout.filledModules, moduleCapacity: layout.moduleCapacity })}
+            >
+              Исправить автоматически
+            </button>
+          )}
+        </div>
       )}
 
       {layout.fits && layout.emptyModules > 0 && (

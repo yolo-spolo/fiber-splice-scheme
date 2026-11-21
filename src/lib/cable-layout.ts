@@ -57,6 +57,33 @@ export function plural(n: number, one: string, few: string, many: string): strin
   return many;
 }
 
+/**
+ * Готовые раскладки для числа волокон: 16 можно собрать как 1×16 или 4×4.
+ * Возвращает варианты «модулей × волокон в модуле» из допустимых ёмкостей,
+ * от самого плотного к самому распределённому.
+ */
+export function layoutOptions(fiberCount: number): { moduleCount: number; moduleCapacity: number }[] {
+  const total = Math.max(1, Math.floor(fiberCount) || 0);
+  const options: { moduleCount: number; moduleCapacity: number }[] = [];
+  for (const capacity of MODULE_CAPACITIES) {
+    const moduleCount = Math.ceil(total / capacity);
+    if (moduleCount > 96) continue;
+    // Показываем только раскладки без пустых модулей: 16 в 4×6 даёт лишний пустой.
+    if ((moduleCount - 1) * capacity >= total) continue;
+    options.push({ moduleCount, moduleCapacity: capacity });
+  }
+  // Сначала варианты без свободных мест (24 = 2×12, а не 2×16), затем по числу
+  // модулей: сварщику привычнее начать с самого плотного.
+  const freeSlots = (o: { moduleCount: number; moduleCapacity: number }) =>
+    o.moduleCount * o.moduleCapacity - total;
+  return options.sort(
+    (a, b) =>
+      freeSlots(a) - freeSlots(b) ||
+      a.moduleCount - b.moduleCount ||
+      b.moduleCapacity - a.moduleCapacity,
+  );
+}
+
 /** Позиция волокна внутри модуля → код цвета TIA-598. */
 export function colorCodeForPosition(position: number): number {
   return (position - 1) % 12;

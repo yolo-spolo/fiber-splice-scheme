@@ -95,6 +95,7 @@ model Cable {
   moduleCapacity Int            @default(12)
   colorScheme    String         @default("TIA598")
   colorOrder     Int[]          @default([])
+  moduleColors   Int[]          @default([])
   fromLocation   String?
   toLocation     String?
   ownership      CableOwnership @default(OURS)
@@ -237,6 +238,7 @@ model CableTypePreset {
   moduleCapacity Int      @default(12)
   colorScheme    String   @default("TIA598")
   colorOrder     Int[]    @default([])
+  moduleColors   Int[]    @default([])
   ownership      String   @default("OURS")
   sheathColor    String?
   note           String?

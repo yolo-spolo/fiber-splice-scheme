@@ -7,6 +7,7 @@ import { Field, SubmitButton, Textarea } from "@/components/ui/fields";
 import { CableLayoutPreview } from "@/components/cable-layout-preview";
 import { ModuleCapacitySelect } from "@/components/module-capacity-select";
 import { ColorSchemeSelect } from "@/components/color-scheme-select";
+import { CountField, LayoutSuggestions } from "@/components/count-field";
 
 type EditableCable = {
   id: string;
@@ -17,6 +18,7 @@ type EditableCable = {
   moduleCapacity: number;
   colorScheme: string;
   colorOrder: number[];
+  moduleColors: number[];
   fromLocation: string | null;
   toLocation: string | null;
   ownership: string;
@@ -34,20 +36,25 @@ export function EditCableDialog({
   onClose: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [count, setCount] = useState(cable.fiberCount);
-  const [modules, setModules] = useState(cable.moduleCount);
+  const [countText, setCountText] = useState(String(cable.fiberCount));
+  const [modulesText, setModulesText] = useState(String(cable.moduleCount));
   const [moduleCapacity, setModuleCapacity] = useState(cable.moduleCapacity);
   const [ownership, setOwnership] = useState(cable.ownership);
   const [sheathColor, setSheathColor] = useState(cable.sheathColor ?? "");
   const [colorScheme, setColorScheme] = useState(cable.colorScheme);
   const [colorOrder, setColorOrder] = useState<number[]>(cable.colorOrder);
+  const [moduleColors, setModuleColors] = useState<number[]>(cable.moduleColors);
+
+  const count = Number(countText) || 0;
+  const modules = Number(modulesText) || 0;
 
   const layoutChanged =
     count !== cable.fiberCount ||
     moduleCapacity !== cable.moduleCapacity ||
     modules !== cable.moduleCount ||
     colorScheme !== cable.colorScheme ||
-    JSON.stringify(colorOrder) !== JSON.stringify(cable.colorOrder);
+    JSON.stringify(colorOrder) !== JSON.stringify(cable.colorOrder) ||
+    JSON.stringify(moduleColors) !== JSON.stringify(cable.moduleColors);
   const willRemoveSpliced = splicedCount > 0 && count < cable.fiberCount;
 
   return (
@@ -94,32 +101,20 @@ export function EditCableDialog({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label">Волокон</span>
-              <input
-                className="field"
-                type="number"
-                name="fiberCount"
-                min={1}
-                max={1152}
-                inputMode="numeric"
-                value={count}
-                onChange={(e) => setCount(Math.max(1, Math.min(1152, Number(e.target.value) || 1)))}
-              />
-            </label>
-            <label className="block">
-              <span className="label">Модулей</span>
-              <input
-                className="field"
-                type="number"
-                name="moduleCount"
-                min={1}
-                max={96}
-                inputMode="numeric"
-                value={modules}
-                onChange={(e) => setModules(Math.max(1, Math.min(96, Number(e.target.value) || 1)))}
-              />
-            </label>
+            <CountField
+              label="Волокон"
+              name="fiberCount"
+              value={countText}
+              onChange={setCountText}
+              max={1152}
+            />
+            <CountField
+              label="Модулей"
+              name="moduleCount"
+              value={modulesText}
+              onChange={setModulesText}
+              max={96}
+            />
             <ModuleCapacitySelect
               name="moduleCapacity"
               value={moduleCapacity}
@@ -127,14 +122,37 @@ export function EditCableDialog({
             />
           </div>
 
-          <CableLayoutPreview fiberCount={count} moduleCount={modules} moduleCapacity={moduleCapacity} />
+          <LayoutSuggestions
+            fiberCount={count}
+            moduleCount={modules}
+            moduleCapacity={moduleCapacity}
+            onPick={(layout) => {
+              setModulesText(String(layout.moduleCount));
+              setModuleCapacity(layout.moduleCapacity);
+            }}
+          />
+
+          <CableLayoutPreview
+            fiberCount={count}
+            moduleCount={modules}
+            moduleCapacity={moduleCapacity}
+            scheme={colorScheme}
+            moduleColors={moduleColors}
+            onFix={(layout) => {
+              setModulesText(String(layout.moduleCount));
+              setModuleCapacity(layout.moduleCapacity);
+            }}
+          />
 
           <ColorSchemeSelect
             scheme={colorScheme}
             onSchemeChange={setColorScheme}
             colorOrder={colorOrder}
             onColorOrderChange={setColorOrder}
+            moduleColors={moduleColors}
+            onModuleColorsChange={setModuleColors}
             moduleCapacity={moduleCapacity}
+            moduleCount={modules}
           />
 
           {layoutChanged && splicedCount > 0 && (

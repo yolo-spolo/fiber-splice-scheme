@@ -7,6 +7,7 @@ import { Field, Select, SubmitButton } from "@/components/ui/fields";
 import { CableLayoutPreview } from "@/components/cable-layout-preview";
 import { ModuleCapacitySelect } from "@/components/module-capacity-select";
 import { ColorSchemeSelect } from "@/components/color-scheme-select";
+import { CountField, LayoutSuggestions } from "@/components/count-field";
 
 const FIBER_PRESETS = [4, 8, 12, 24, 48, 96];
 
@@ -25,6 +26,7 @@ export function NewCableDialog({
     moduleCapacity: number;
     colorScheme: string;
     colorOrder: number[];
+    moduleColors?: number[];
     ownership: string;
     sheathColor: string | null;
     note: string | null;
@@ -33,13 +35,17 @@ export function NewCableDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typeName, setTypeName] = useState("");
-  const [count, setCount] = useState(24);
-  const [modules, setModules] = useState(1);
+  const [countText, setCountText] = useState("24");
+  const [modulesText, setModulesText] = useState("1");
   const [moduleCapacity, setModuleCapacity] = useState(12);
   const [sheathColor, setSheathColor] = useState("");
   const [ownership, setOwnership] = useState("OURS");
   const [colorScheme, setColorScheme] = useState("TIA598");
   const [colorOrder, setColorOrder] = useState<number[]>([]);
+  const [moduleColors, setModuleColors] = useState<number[]>([]);
+
+  const count = Number(countText) || 0;
+  const modules = Number(modulesText) || 0;
 
   function applyType(id: string) {
     const preset = cableTypes.find((t) => t.id === id);
@@ -48,13 +54,14 @@ export function NewCableDialog({
       return;
     }
     setTypeName(preset.name);
-    setCount(preset.fiberCount);
-    setModules(preset.moduleCount);
+    setCountText(String(preset.fiberCount));
+    setModulesText(String(preset.moduleCount));
     setModuleCapacity(preset.moduleCapacity);
     setSheathColor(preset.sheathColor ?? "");
     setOwnership(preset.ownership);
     setColorScheme(preset.colorScheme);
     setColorOrder(preset.colorOrder);
+    setModuleColors(preset.moduleColors ?? []);
   }
 
   return (
@@ -148,7 +155,7 @@ export function NewCableDialog({
                     <button
                       key={n}
                       type="button"
-                      onClick={() => setCount(n)}
+                      onClick={() => setCountText(String(n))}
                       className={`chip cursor-pointer px-2.5 py-1 ${
                         count === n ? "!border-[var(--color-accent)] !bg-[var(--color-accent-soft)]" : ""
                       }`}
@@ -157,40 +164,41 @@ export function NewCableDialog({
                     </button>
                   ))}
                 </div>
-                <input
-                  className="field"
-                  type="number"
+                <CountField
                   name="fiberCount"
-                  min={1}
+                  value={countText}
+                  onChange={setCountText}
                   max={1152}
-                  required
-                  inputMode="numeric"
-                  value={count}
-                  onChange={(e) => setCount(Math.max(1, Math.min(1152, Number(e.target.value) || 1)))}
+                  placeholder="24"
                 />
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block">
-                  <span className="label">Количество модулей</span>
-                  <input
-                    className="field"
-                    type="number"
-                    name="moduleCount"
-                    min={1}
-                    max={96}
-                    required
-                    inputMode="numeric"
-                    value={modules}
-                    onChange={(e) => setModules(Math.max(1, Math.min(96, Number(e.target.value) || 1)))}
-                  />
-                </label>
+                <CountField
+                  label="Количество модулей"
+                  name="moduleCount"
+                  value={modulesText}
+                  onChange={setModulesText}
+                  max={96}
+                  placeholder="1"
+                  hint="Сколько трубок в кабеле"
+                />
                 <ModuleCapacitySelect
                   name="moduleCapacity"
                   value={moduleCapacity}
                   onChange={setModuleCapacity}
                 />
               </div>
+
+              <LayoutSuggestions
+                fiberCount={count}
+                moduleCount={modules}
+                moduleCapacity={moduleCapacity}
+                onPick={(layout) => {
+                  setModulesText(String(layout.moduleCount));
+                  setModuleCapacity(layout.moduleCapacity);
+                }}
+              />
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
@@ -223,14 +231,27 @@ export function NewCableDialog({
                 </label>
               </div>
 
-              <CableLayoutPreview fiberCount={count} moduleCount={modules} moduleCapacity={moduleCapacity} />
+              <CableLayoutPreview
+                fiberCount={count}
+                moduleCount={modules}
+                moduleCapacity={moduleCapacity}
+                scheme={colorScheme}
+                moduleColors={moduleColors}
+                onFix={(layout) => {
+                  setModulesText(String(layout.moduleCount));
+                  setModuleCapacity(layout.moduleCapacity);
+                }}
+              />
 
               <ColorSchemeSelect
                 scheme={colorScheme}
                 onSchemeChange={setColorScheme}
                 colorOrder={colorOrder}
                 onColorOrderChange={setColorOrder}
+                moduleColors={moduleColors}
+                onModuleColorsChange={setModuleColors}
                 moduleCapacity={moduleCapacity}
+                moduleCount={modules}
               />
 
               <div className="grid gap-3 sm:grid-cols-2">

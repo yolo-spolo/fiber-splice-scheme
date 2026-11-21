@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { autoSpliceStraight, createSplice, deleteSplice } from "@/lib/actions/splices";
-import { colorByCode } from "@/lib/colors";
+import { colorByCode, moduleColorCode, swatchBackground } from "@/lib/colors";
 import { SPLICE_KIND_LABELS } from "@/lib/labels";
 import { SubmitButton } from "@/components/ui/fields";
 import { SpliceScheme } from "@/components/splice-scheme";
@@ -21,6 +21,9 @@ type EditorCable = {
   label: string;
   type: string | null;
   ownership: "OURS" | "FOREIGN";
+  moduleCount: number;
+  colorScheme: string;
+  moduleColors: number[];
   fibers: EditorFiber[];
 };
 
@@ -288,9 +291,10 @@ export function SpliceEditor({
                 <div className="space-y-2">
                   {[...modules.entries()].map(([moduleIndex, fibers]) => (
                     <div key={moduleIndex}>
-                      <div className="mb-1 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--color-ink-400)]">
-                        Модуль {moduleIndex}
-                      </div>
+                      <ModuleHeading
+                        moduleIndex={moduleIndex}
+                        colorCode={moduleColorCode(moduleIndex, cable.colorScheme, cable.moduleColors)}
+                      />
                       <div className="flex flex-wrap gap-1.5">
                         {fibers.map((fiber) => {
                           const color = colorByCode(fiber.colorCode);
@@ -502,6 +506,26 @@ function SelectedSlot({ label, text }: { label: string; text: string | null }) {
     <div className="flex items-center justify-between rounded-lg border border-dashed border-[var(--color-line)] px-2.5 py-1.5 text-[12.5px]">
       <span className="text-[var(--color-ink-400)]">{label}</span>
       <span className={text ? "font-mono font-semibold" : "text-[var(--color-ink-400)]"}>{text ?? "—"}</span>
+    </div>
+  );
+}
+
+/**
+ * Заголовок модуля: цвет трубки плюс подпись. Сварщик находит нужный модуль
+ * по цвету, а номер и название страхуют на ч/б печати и при дальтонизме.
+ */
+function ModuleHeading({ moduleIndex, colorCode }: { moduleIndex: number; colorCode: number }) {
+  const color = colorByCode(colorCode);
+  return (
+    <div className="mb-1 flex items-center gap-1.5">
+      <span
+        className="h-3 w-3 shrink-0 rounded-[2px] border border-black/30"
+        style={swatchBackground(colorCode)}
+      />
+      <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--color-ink-500)]">
+        Модуль {moduleIndex}
+      </span>
+      <span className="text-[10px] text-[var(--color-ink-400)]">{color.name.toLowerCase()}</span>
     </div>
   );
 }

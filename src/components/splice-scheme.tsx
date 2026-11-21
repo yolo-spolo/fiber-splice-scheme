@@ -1,9 +1,12 @@
-import { colorByCode } from "@/lib/colors";
+import { colorByCode, moduleColorCode, swatchBackground } from "@/lib/colors";
 
 export type SchemeCable = {
   id: string;
   label: string;
   order?: number;
+  moduleCount?: number;
+  colorScheme?: string;
+  moduleColors?: number[];
   fibers: { id: string; moduleIndex: number; position: number; colorCode: number }[];
 };
 
@@ -24,6 +27,7 @@ type FiberRef = {
   moduleIndex: number;
   position: number;
   colorCode: number;
+  moduleColorCode: number;
 };
 
 const WIDE = { width: 720, row: 26, head: 24, chip: 13, labelX: 6, gap: 210 };
@@ -56,6 +60,11 @@ export function SpliceScheme({
         moduleIndex: fiber.moduleIndex,
         position: fiber.position,
         colorCode: fiber.colorCode,
+        moduleColorCode: moduleColorCode(
+          fiber.moduleIndex,
+          cable.colorScheme ?? "TIA598",
+          cable.moduleColors ?? [],
+        ),
       });
     }
   }
@@ -157,8 +166,8 @@ export function SpliceScheme({
 
       {showHeader && (
         <p className="text-[10px] text-[var(--color-ink-400)]">
-          М — модуль, число после двоеточия — волокно. Цвет линии — цвет волокна. Пунктир — транзит
-          или механический соединитель.
+          М — модуль, число после двоеточия — волокно. Кружок — цвет модуля (трубки), квадрат —
+          цвет жилы. Цвет линии — цвет волокна. Пунктир — транзит или механический соединитель.
         </p>
       )}
     </div>
@@ -221,10 +230,22 @@ function PairScheme({
         const dashed = splice.kind === "TRANSIT" || splice.kind === "MECHANICAL";
         const leftColor = colorByCode(leftRef.colorCode);
         const rightColor = colorByCode(rightRef.colorCode);
+        // Маркер модуля — кружок, чип жилы — квадрат: формы разные, поэтому
+        // их не спутать ни на цветной, ни на ч/б печати.
+        const tube = compact ? 6 : 7;
         return (
           <g key={splice.id}>
+            <circle
+              cx={labelX + tube / 2}
+              cy={y}
+              r={tube / 2}
+              fill={colorByCode(leftRef.moduleColorCode).hex}
+              stroke="rgba(0,0,0,0.4)"
+              strokeWidth="0.7"
+              strokeDasharray={colorByCode(leftRef.moduleColorCode).striped ? "2 1.2" : undefined}
+            />
             <rect
-              x={labelX}
+              x={labelX + tube + 3}
               y={y - chip / 2}
               width={chip}
               height={chip}
@@ -233,11 +254,11 @@ function PairScheme({
               stroke="rgba(0,0,0,0.32)"
               strokeWidth="0.8"
             />
-            <text x={labelX + chip + 4} y={y + 3.4} fontSize={textSize} fill="#253148">
+            <text x={labelX + tube + chip + 7} y={y + 3.4} fontSize={textSize} fill="#253148">
               М{leftRef.moduleIndex}:{leftRef.position}
             </text>
             {!compact && (
-              <text x={labelX + chip + 44} y={y + 3.4} fontSize={shortSize} fill="#7c8aa5">
+              <text x={labelX + tube + chip + 47} y={y + 3.4} fontSize={shortSize} fill="#7c8aa5">
                 {leftColor.short}
               </text>
             )}
@@ -280,7 +301,7 @@ function PairScheme({
               strokeWidth="0.8"
             />
             <text
-              x={width - labelX - chip - 4}
+              x={width - labelX - chip - tube - 7}
               y={y + 3.4}
               fontSize={textSize}
               fill="#253148"
@@ -290,7 +311,7 @@ function PairScheme({
             </text>
             {!compact && (
               <text
-                x={width - labelX - chip - 44}
+                x={width - labelX - chip - tube - 47}
                 y={y + 3.4}
                 fontSize={shortSize}
                 fill="#7c8aa5"
@@ -299,6 +320,15 @@ function PairScheme({
                 {rightColor.short}
               </text>
             )}
+            <circle
+              cx={width - labelX - chip - tube - 3 + tube / 2}
+              cy={y}
+              r={tube / 2}
+              fill={colorByCode(rightRef.moduleColorCode).hex}
+              stroke="rgba(0,0,0,0.4)"
+              strokeWidth="0.7"
+              strokeDasharray={colorByCode(rightRef.moduleColorCode).striped ? "2 1.2" : undefined}
+            />
           </g>
         );
       })}

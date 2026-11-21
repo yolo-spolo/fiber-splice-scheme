@@ -45,6 +45,7 @@ export default async function SettingsPage() {
             moduleCount: p.moduleCount,
             moduleCapacity: p.moduleCapacity,
             colorScheme: p.colorScheme,
+            moduleColors: p.moduleColors,
             ownership: p.ownership,
             sheathColor: p.sheathColor,
             note: p.note,

@@ -1,5 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { buildFibers, cableLayout, isModuleCapacity, MODULE_CAPACITIES, plural } from "./cable-layout";
+import {
+  buildFibers,
+  cableLayout,
+  isModuleCapacity,
+  layoutOptions,
+  MODULE_CAPACITIES,
+  plural,
+} from "./cable-layout";
+
+describe("layoutOptions", () => {
+  it("для 16 волокон даёт 1×16 и 4×4", () => {
+    const options = layoutOptions(16).map((o) => `${o.moduleCount}×${o.moduleCapacity}`);
+    expect(options).toContain("1×16");
+    expect(options).toContain("4×4");
+    expect(options).toContain("2×8");
+  });
+
+  it("не предлагает раскладки с пустыми модулями", () => {
+    for (const option of layoutOptions(16)) {
+      expect(option.moduleCount * option.moduleCapacity).toBeGreaterThanOrEqual(16);
+      expect((option.moduleCount - 1) * option.moduleCapacity).toBeLessThan(16);
+    }
+  });
+
+  it("для 24 волокон первый вариант — 2×12", () => {
+    expect(layoutOptions(24)[0]).toEqual({ moduleCount: 2, moduleCapacity: 12 });
+  });
+
+  it("всегда покрывает всё количество", () => {
+    for (const total of [1, 6, 8, 12, 16, 24, 48, 96]) {
+      const options = layoutOptions(total);
+      expect(options.length).toBeGreaterThan(0);
+      expect(options[0].moduleCount * options[0].moduleCapacity).toBeGreaterThanOrEqual(total);
+    }
+  });
+});
 
 describe("MODULE_CAPACITIES", () => {
   it("содержит весь набор, включая 16", () => {
