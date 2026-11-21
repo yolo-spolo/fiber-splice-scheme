@@ -7,6 +7,7 @@
 Сварщик вносит кабели и волокна, собирает схему в два касания, прикладывает фото
 муфты — и отдаёт заказчику печатный документ, PDF или ссылку только для чтения.
 
+[![CI](https://github.com/yolo-spolo/fiber-splice-scheme/actions/workflows/ci.yml/badge.svg)](https://github.com/yolo-spolo/fiber-splice-scheme/actions/workflows/ci.yml)
 [![Лицензия: MIT](https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-MIT-0f766e.svg)](LICENSE)
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-000000.svg)](https://nextjs.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org)
