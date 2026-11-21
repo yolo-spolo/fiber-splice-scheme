@@ -1,77 +1,22 @@
 import { prisma } from "@/lib/prisma";
-
-export type CablePresetInput = {
-  name: string;
-  fiberCount: number;
-  moduleCount: number;
-  moduleCapacity: number;
-  ownership: "OURS" | "FOREIGN";
-  sheathColor: string | null;
-  note: string | null;
-};
+import { cableTemplatePresets, type CableTemplatePreset } from "@/lib/cable-templates";
 
 /**
- * Встроенные типы кабеля. Создаются один раз и дальше живут в БД, поэтому
- * пользователь может их переименовать или удалить — это не константы в коде.
+ * Типы кабелей в справочнике создаются из шаблонов (`cable-templates.ts`).
+ * Шаблоны живут в БД, поэтому пользователь может их переименовать или удалить.
  */
-export const DEFAULT_CABLE_TYPES: CablePresetInput[] = [
-  {
-    name: "Воздушный подвесной",
-    fiberCount: 8,
-    moduleCount: 1,
-    moduleCapacity: 12,
-    ownership: "OURS",
-    sheathColor: "Чёрный",
-    note: "Самонесущий, между опорами",
-  },
-  {
-    name: "Подземный в грунт",
-    fiberCount: 24,
-    moduleCount: 2,
-    moduleCapacity: 12,
-    ownership: "OURS",
-    sheathColor: "Чёрный",
-    note: "Броня, траншея",
-  },
-  {
-    name: "Магистральный",
-    fiberCount: 48,
-    moduleCount: 4,
-    moduleCapacity: 12,
-    ownership: "OURS",
-    sheathColor: "Чёрный",
-    note: "Между узлами, до 96 волокон",
-  },
-  {
-    name: "Дроп до абонента",
-    fiberCount: 1,
-    moduleCount: 1,
-    moduleCapacity: 4,
-    ownership: "OURS",
-    sheathColor: "Чёрный",
-    note: "Один абонент, тонкий",
-  },
-  {
-    name: "Пигтейл",
-    fiberCount: 1,
-    moduleCount: 1,
-    moduleCapacity: 4,
-    ownership: "OURS",
-    sheathColor: "Жёлтый",
-    note: "Внутренний монтаж, SC/LC",
-  },
-  {
-    name: "Транзитный чужой",
-    fiberCount: 12,
-    moduleCount: 1,
-    moduleCapacity: 12,
-    ownership: "FOREIGN",
-    sheathColor: "Оранжевый",
-    note: "Не наш кабель, только транзит",
-  },
-];
+export type CablePresetInput = CableTemplatePreset;
 
-/** Идемпотентно создаёт встроенные типы, если их ещё нет. */
+/** Встроенные типы кабеля — 7 раскладок × 2 стандарта цветовки. */
+export const DEFAULT_CABLE_TYPES: CablePresetInput[] = cableTemplatePresets();
+
+/**
+ * Создаёт встроенные типы при первом запуске — когда справочник пуст.
+ *
+ * Удалённые пользователем типы не восстанавливаются: иначе «Удалить»
+ * переставало бы работать. Обновление справочника до новых шаблонов —
+ * разовое действие при выпуске версии, а не побочный эффект открытия страницы.
+ */
 export async function ensureCableTypeDefaults(): Promise<void> {
   const count = await prisma.cableTypePreset.count();
   if (count > 0) return;

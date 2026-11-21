@@ -5,22 +5,43 @@ export const MODULE_CAPACITIES = [1, 2, 4, 6, 8, 10, 12, 16] as const;
 
 export type ModuleCapacity = (typeof MODULE_CAPACITIES)[number];
 
+/** Ёмкость по умолчанию, когда считать нечего: пустые поля в форме. */
+const DEFAULT_MODULE_CAPACITY: ModuleCapacity = 12;
+
 export function isModuleCapacity(value: number): value is ModuleCapacity {
   return (MODULE_CAPACITIES as readonly number[]).includes(value);
 }
 
 /**
- * Раскладка кабеля по модулям. Сварщик задаёт три числа вручную:
- * волокон, модулей и волокон в модуле. Модули заполняются по порядку,
- * последний может быть неполным.
+ * Ёмкость модуля сварщик не задаёт — она выводится из двух чисел:
+ * сколько волокон и сколько трубок. Берём наименьшую стандартную ёмкость,
+ * в которую помещается «волокон / модулей»:
+ *
+ *   24 волокна, 2 модуля → 12      16 волокон, 2 модуля → 8
+ *   48 волокон, 6 модулей → 8      14 волокон, 1 модуль → 16
+ *
+ * Если не хватает даже 16 (24 волокна в одной трубке), возвращаем 16:
+ * раскладка честно покажет нехватку, а не спрячет её.
  */
-export function cableLayout(fiberCount: number, moduleCount: number, moduleCapacity: number) {
-  const perModule = isModuleCapacity(moduleCapacity) ? moduleCapacity : 12;
+export function deriveModuleCapacity(fiberCount: number, moduleCount: number): ModuleCapacity {
   const total = Math.max(0, Math.floor(fiberCount) || 0);
   const modules = Math.max(0, Math.floor(moduleCount) || 0);
+  if (total === 0 || modules === 0) return DEFAULT_MODULE_CAPACITY;
+  const needed = Math.ceil(total / modules);
+  return MODULE_CAPACITIES.find((capacity) => capacity >= needed) ?? 16;
+}
+
+/**
+ * Раскладка кабеля по модулям. Сварщик задаёт только волокна и модули,
+ * ёмкость выводится автоматически. Модули заполняются по порядку,
+ * последний может быть неполным.
+ */
+export function cableLayout(fiberCount: number, moduleCount: number) {
+  const total = Math.max(0, Math.floor(fiberCount) || 0);
+  const modules = Math.max(0, Math.floor(moduleCount) || 0);
+  const perModule = deriveModuleCapacity(total, modules);
   const capacity = modules * perModule;
   const filledModules = total === 0 ? 0 : Math.ceil(total / perModule);
-  const remainder = total === 0 ? 0 : total % perModule || perModule;
   const freeSlots = Math.max(0, capacity - total);
   const emptyModules = Math.max(0, modules - filledModules);
   const fits = total <= capacity;
@@ -38,7 +59,7 @@ export function cableLayout(fiberCount: number, moduleCount: number, moduleCapac
     emptyModules,
     fits,
     overflow,
-    /** Подпись вида «24 волокна · 2 модуля × 12». */
+    /** Подпись вида «2 модуля × 12 = 24 места». */
     summary:
       modules === 0
         ? "модулей нет"
@@ -58,30 +79,12 @@ export function plural(n: number, one: string, few: string, many: string): strin
 }
 
 /**
- * Готовые раскладки для числа волокон: 16 можно собрать как 1×16 или 4×4.
- * Возвращает варианты «модулей × волокон в модуле» из допустимых ёмкостей,
- * от самого плотного к самому распределённому.
+ * Сколько модулей нужно для введённого числа волокон. Считаем по 12:
+ * модуль на 16 повторил бы цвета 1–4 на позициях 13–16.
  */
-export function layoutOptions(fiberCount: number): { moduleCount: number; moduleCapacity: number }[] {
+export function suggestModuleCount(fiberCount: number): number {
   const total = Math.max(1, Math.floor(fiberCount) || 0);
-  const options: { moduleCount: number; moduleCapacity: number }[] = [];
-  for (const capacity of MODULE_CAPACITIES) {
-    const moduleCount = Math.ceil(total / capacity);
-    if (moduleCount > 96) continue;
-    // Показываем только раскладки без пустых модулей: 16 в 4×6 даёт лишний пустой.
-    if ((moduleCount - 1) * capacity >= total) continue;
-    options.push({ moduleCount, moduleCapacity: capacity });
-  }
-  // Сначала варианты без свободных мест (24 = 2×12, а не 2×16), затем по числу
-  // модулей: сварщику привычнее начать с самого плотного.
-  const freeSlots = (o: { moduleCount: number; moduleCapacity: number }) =>
-    o.moduleCount * o.moduleCapacity - total;
-  return options.sort(
-    (a, b) =>
-      freeSlots(a) - freeSlots(b) ||
-      a.moduleCount - b.moduleCount ||
-      b.moduleCapacity - a.moduleCapacity,
-  );
+  return Math.max(1, Math.ceil(total / 12));
 }
 
 /** Позиция волокна внутри модуля → код цвета TIA-598. */
@@ -95,11 +98,11 @@ export function colorCodeForPosition(position: number): number {
  */
 export function buildFibers(
   fiberCount: number,
-  moduleCapacity: number,
+  moduleCount: number,
   colorScheme = "TIA598",
   colorOrder: number[] = [],
 ) {
-  const perModule = Math.max(1, moduleCapacity);
+  const perModule = deriveModuleCapacity(fiberCount, moduleCount);
   const palette = colorsForScheme(colorScheme, perModule, colorOrder);
   return Array.from({ length: fiberCount }, (_, i) => ({
     moduleIndex: Math.floor(i / perModule) + 1,

@@ -1,7 +1,7 @@
 "use client";
 
-import { colorByCode, moduleColorCodes, swatchBackground } from "@/lib/colors";
-import { cableLayout, layoutOptions, plural } from "@/lib/cable-layout";
+import { colorByCode, colorsForScheme, moduleColorCodes, swatchBackground } from "@/lib/colors";
+import { cableLayout, plural, suggestModuleCount } from "@/lib/cable-layout";
 
 /**
  * Наглядный предпросмотр: сколько получится модулей, что заполнено,
@@ -10,22 +10,26 @@ import { cableLayout, layoutOptions, plural } from "@/lib/cable-layout";
 export function CableLayoutPreview({
   fiberCount,
   moduleCount,
-  moduleCapacity,
   scheme = "TIA598",
+  colorOrder = [],
   moduleColors = [],
   compact = false,
   onFix,
 }: {
   fiberCount: number;
   moduleCount: number;
-  moduleCapacity: number;
   scheme?: string;
+  colorOrder?: number[];
   moduleColors?: number[];
   compact?: boolean;
-  onFix?: (layout: { moduleCount: number; moduleCapacity: number }) => void;
+  onFix?: (layout: { moduleCount: number }) => void;
 }) {
-  const layout = cableLayout(fiberCount, moduleCount, moduleCapacity);
+  // Ёмкость модуля не передаётся: она выводится из волокон и модулей.
+  const layout = cableLayout(fiberCount, moduleCount);
   const tubes = moduleColorCodes(layout.moduleCount, scheme, moduleColors);
+  // Цвета жил берём по выбранной схеме, а не всегда TIA: иначе «Европа»
+  // и «все белые» в предпросмотре показывали не то, что попадёт в кабель.
+  const palette = colorsForScheme(scheme, layout.moduleCapacity, colorOrder);
   const shown = Math.max(1, Math.min(layout.moduleCount, compact ? 3 : 8));
 
   const rows = Array.from({ length: shown }, (_, index) => {
@@ -64,14 +68,15 @@ export function CableLayoutPreview({
               <span className="flex flex-wrap gap-[2px]">
                 {Array.from({ length: layout.moduleCapacity }, (_, i) => {
                   const filled = i < row.inModule;
-                  const color = colorByCode(i);
+                  const code = palette[i % palette.length];
+                  const color = colorByCode(code);
                   return (
                     <span
                       key={i}
                       className={`h-3 w-3 rounded-[2px] border ${
                         filled ? "border-black/25" : "border-dashed border-[var(--color-line)] bg-white"
                       }`}
-                      style={filled ? { background: color.hex } : undefined}
+                      style={filled ? swatchBackground(code) : undefined}
                       title={filled ? `${i + 1} · ${color.name}` : "свободно"}
                     />
                   );
@@ -101,7 +106,7 @@ export function CableLayoutPreview({
             <button
               type="button"
               className="btn btn-ghost px-2 py-0.5 text-[11px] !text-[var(--color-danger)]"
-              onClick={() => onFix(layoutOptions(layout.fiberCount)[0] ?? { moduleCount: layout.filledModules, moduleCapacity: layout.moduleCapacity })}
+              onClick={() => onFix({ moduleCount: suggestModuleCount(layout.fiberCount) })}
             >
               Исправить автоматически
             </button>
@@ -129,6 +134,13 @@ export function CableLayoutPreview({
         <p className="mt-1.5 text-[11px] text-[var(--color-accent)]">
           Все модули заполнены полностью — {layout.moduleCount}{" "}
           {plural(layout.moduleCount, "модуль", "модуля", "модулей")} по {layout.moduleCapacity}.
+        </p>
+      )}
+
+      {layout.moduleCapacity > 12 && (
+        <p className="mt-1.5 text-[11px] text-[var(--color-warn)]">
+          В модуле больше 12 волокон: цвета 13-го и дальше повторяют первые. Номера на схеме
+          разные, но цвет можно задать вручную ниже.
         </p>
       )}
     </div>

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { deleteCable } from "@/lib/actions/cables";
 import { setFiberStatus } from "@/lib/actions/splices";
 import { colorByCode, moduleColorCode, swatchBackground } from "@/lib/colors";
+import { cableLayout } from "@/lib/cable-layout";
 import type { CableWithFibers } from "@/lib/closure-data";
 import { FIBER_STATUS_LABELS } from "@/lib/labels";
 import { EditCableDialog } from "./edit-cable-dialog";
@@ -50,7 +51,8 @@ export function CableCard({
           <div className="mt-0.5 flex flex-wrap gap-x-1.5 text-[12.5px] text-[var(--color-ink-500)]">
             <span className="whitespace-nowrap">{cable.fiberCount} волокон</span>
             <span className="whitespace-nowrap">
-              {cable.moduleCount} мод. × {cable.moduleCapacity}
+              {cable.moduleCount} мод. ×{" "}
+              {cableLayout(cable.fiberCount, cable.moduleCount).moduleCapacity}
             </span>
             {(cable.fromLocation || cable.toLocation) && (
               <span className="min-w-0 break-words">

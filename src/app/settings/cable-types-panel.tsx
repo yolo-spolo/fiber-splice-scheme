@@ -5,16 +5,17 @@ import { createCableType, deleteCableType, updateCableType } from "@/lib/actions
 import { CABLE_SHEATH_COLORS } from "@/lib/cable-types";
 import { Field, SubmitButton, Textarea } from "@/components/ui/fields";
 import { CableLayoutPreview } from "@/components/cable-layout-preview";
-import { ModuleCapacitySelect } from "@/components/module-capacity-select";
 import { ColorSchemeSelect } from "@/components/color-scheme-select";
-import { CountField, LayoutSuggestions } from "@/components/count-field";
+import { CountField, ModuleCountHint } from "@/components/count-field";
+import { CableTemplatePicker } from "@/components/cable-template-picker";
+import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
+import { cableLayout } from "@/lib/cable-layout";
 
 type Preset = {
   id: string;
   name: string;
   fiberCount: number;
   moduleCount: number;
-  moduleCapacity: number;
   colorScheme: string;
   moduleColors: number[];
   ownership: string;
@@ -29,7 +30,6 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
   const [error, setError] = useState<string | null>(null);
   const [countText, setCountText] = useState("8");
   const [modulesText, setModulesText] = useState("1");
-  const [capacity, setCapacity] = useState(12);
   const [colorScheme, setColorScheme] = useState("TIA598");
   const [colorOrder, setColorOrder] = useState<number[]>([]);
   const [moduleColors, setModuleColors] = useState<number[]>([]);
@@ -37,11 +37,17 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
   const count = Number(countText) || 0;
   const modules = Number(modulesText) || 0;
 
+  function applyTemplate(template: CableTemplate) {
+    setCountText(String(template.fiberCount));
+    setModulesText(String(template.moduleCount));
+    setModuleColors(template.moduleColors);
+    setColorOrder([]);
+  }
+
   function openNew() {
     setError(null);
     setCountText("8");
     setModulesText("1");
-    setCapacity(12);
     setColorScheme("TIA598");
     setColorOrder([]);
     setModuleColors([]);
@@ -52,7 +58,6 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
     setError(null);
     setCountText(String(preset.fiberCount));
     setModulesText(String(preset.moduleCount));
-    setCapacity(preset.moduleCapacity);
     setColorScheme(preset.colorScheme);
     setColorOrder([]);
     setModuleColors(preset.moduleColors ?? []);
@@ -111,6 +116,17 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
               defaultValue={mode.kind === "edit" ? mode.preset.name : ""}
               placeholder="Воздушный подвесной"
             />
+            <CableTemplatePicker
+              fiberCount={count}
+              moduleCount={modules}
+              scheme={colorScheme}
+              onStandardChange={(standard: CableStandard) => {
+                setColorScheme(standard);
+                setColorOrder([]);
+              }}
+              onPick={applyTemplate}
+              compact
+            />
             <div className="grid gap-2.5 sm:grid-cols-2">
               <CountField
                 label="Волокон"
@@ -127,31 +143,14 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
                 max={96}
               />
             </div>
-            <ModuleCapacitySelect
-              name="moduleCapacity"
-              value={capacity}
-              onChange={setCapacity}
-              compact
-            />
-            <LayoutSuggestions
-              fiberCount={count}
-              moduleCount={modules}
-              moduleCapacity={capacity}
-              onPick={(layout) => {
-                setModulesText(String(layout.moduleCount));
-                setCapacity(layout.moduleCapacity);
-              }}
-            />
+            <ModuleCountHint fiberCount={count} moduleCount={modules} />
             <CableLayoutPreview
               fiberCount={count}
               moduleCount={modules}
-              moduleCapacity={capacity}
               scheme={colorScheme}
+              colorOrder={colorOrder}
               moduleColors={moduleColors}
-              onFix={(layout) => {
-                setModulesText(String(layout.moduleCount));
-                setCapacity(layout.moduleCapacity);
-              }}
+              onFix={(next) => setModulesText(String(next.moduleCount))}
               compact
             />
             <ColorSchemeSelect
@@ -161,7 +160,7 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
               onColorOrderChange={setColorOrder}
               moduleColors={moduleColors}
               onModuleColorsChange={setModuleColors}
-              moduleCapacity={capacity}
+              moduleCapacity={cableLayout(count, modules).moduleCapacity}
               moduleCount={modules}
               compact
             />
@@ -224,7 +223,8 @@ export function CableTypesPanel({ presets }: { presets: Preset[] }) {
                 )}
               </div>
               <div className="text-[11.5px] text-[var(--color-ink-500)]">
-                {preset.fiberCount} вол. · {preset.moduleCount} × {preset.moduleCapacity}
+                {preset.fiberCount} вол. · {preset.moduleCount} ×{" "}
+                {cableLayout(preset.fiberCount, preset.moduleCount).moduleCapacity}
                 {preset.note ? ` · ${preset.note}` : ""}
               </div>
             </div>

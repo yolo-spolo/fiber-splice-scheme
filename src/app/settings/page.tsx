@@ -43,7 +43,6 @@ export default async function SettingsPage() {
             name: p.name,
             fiberCount: p.fiberCount,
             moduleCount: p.moduleCount,
-            moduleCapacity: p.moduleCapacity,
             colorScheme: p.colorScheme,
             moduleColors: p.moduleColors,
             ownership: p.ownership,

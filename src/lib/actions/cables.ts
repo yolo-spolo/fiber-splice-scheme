@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { buildFibers, cableLayout, MODULE_CAPACITIES, plural } from "@/lib/cable-layout";
+import {
+  buildFibers,
+  cableLayout,
+  plural,
+  suggestModuleCount,
+} from "@/lib/cable-layout";
 import { isColorScheme } from "@/lib/colors";
 
 /** Массив цветов из формы: JSON-строка или повторяющиеся поля. */
@@ -55,14 +60,6 @@ const moduleColorsSchema = z
     }
   });
 
-const moduleCapacitySchema = z
-  .coerce
-  .number()
-  .int()
-  .refine((value) => (MODULE_CAPACITIES as readonly number[]).includes(value), {
-    message: `Волокон в модуле: допустимо ${MODULE_CAPACITIES.join(", ")}`,
-  });
-
 const cableSchema = z.object({
   closureId: z.string().min(1),
   label: z.string().trim().min(1, "Укажите метку кабеля").max(60),
@@ -77,7 +74,6 @@ const cableSchema = z.object({
     .int("Модулей должно быть целое число")
     .min(1, "Модулей должно быть хотя бы 1")
     .max(96, "Не больше 96 модулей"),
-  moduleCapacity: moduleCapacitySchema,
   colorScheme: colorSchemeSchema,
   colorOrder: colorOrderSchema,
   moduleColors: moduleColorsSchema,
@@ -97,10 +93,26 @@ export async function createCable(formData: FormData) {
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля" };
   const d = parsed.data;
 
-  const layout = cableLayout(d.fiberCount, d.moduleCount, d.moduleCapacity);
+  // Ёмкость модуля не вводится вручную: она выводится из двух чисел.
+  const layout = cableLayout(d.fiberCount, d.moduleCount);
   if (!layout.fits) {
     return {
-      error: `Не помещается: ${d.fiberCount} волокон в ${d.moduleCount} × ${d.moduleCapacity} = ${layout.capacity}. Добавьте модуль или уменьшите количество волокон.`,
+      error: `Не помещается: ${d.fiberCount} ${plural(
+        d.fiberCount,
+        "волокно",
+        "волокна",
+        "волокон",
+      )} в ${d.moduleCount} ${plural(
+        d.moduleCount,
+        "модуль",
+        "модуля",
+        "модулей",
+      )} по ${layout.moduleCapacity}. Нужно ${suggestModuleCount(d.fiberCount)} ${plural(
+        suggestModuleCount(d.fiberCount),
+        "модуль",
+        "модуля",
+        "модулей",
+      )}.`,
     };
   }
 
@@ -115,7 +127,7 @@ export async function createCable(formData: FormData) {
     _max: { order: true },
   });
 
-  const fibers = buildFibers(d.fiberCount, d.moduleCapacity, d.colorScheme, d.colorOrder);
+  const fibers = buildFibers(d.fiberCount, d.moduleCount, d.colorScheme, d.colorOrder);
 
   await prisma.cable.create({
     data: {
@@ -124,7 +136,7 @@ export async function createCable(formData: FormData) {
       type: nullify(d.type),
       fiberCount: d.fiberCount,
       moduleCount: layout.moduleCount,
-      moduleCapacity: d.moduleCapacity,
+      moduleCapacity: layout.moduleCapacity,
       colorScheme: d.colorScheme,
       colorOrder: d.colorOrder,
       moduleColors: d.moduleColors,
@@ -148,7 +160,6 @@ export async function updateCable(id: string, formData: FormData) {
       type: z.string().trim().max(60).optional(),
       fiberCount: z.coerce.number().int().min(1).max(1152).optional(),
       moduleCount: z.coerce.number().int().min(1).max(96).optional(),
-      moduleCapacity: moduleCapacitySchema.optional(),
       colorScheme: colorSchemeSchema,
       colorOrder: colorOrderSchema,
       moduleColors: moduleColorsSchema,
@@ -183,14 +194,30 @@ export async function updateCable(id: string, formData: FormData) {
   if (duplicate) return { error: `Кабель «${d.label}» уже есть в этой муфте` };
 
   const nextFiberCount = d.fiberCount ?? cable.fiberCount;
-  const nextCapacity = d.moduleCapacity ?? cable.moduleCapacity;
   const nextModuleCount = d.moduleCount ?? cable.moduleCount;
-  const nextLayout = cableLayout(nextFiberCount, nextModuleCount, nextCapacity);
+  // Ёмкость всегда выводится из волокон и модулей — и при изменении кабеля.
+  const nextLayout = cableLayout(nextFiberCount, nextModuleCount);
   if (!nextLayout.fits) {
     return {
-      error: `Не помещается: ${nextFiberCount} волокон в ${nextModuleCount} × ${nextCapacity} = ${nextLayout.capacity}. Добавьте модуль или уменьшите количество волокон.`,
+      error: `Не помещается: ${nextFiberCount} ${plural(
+        nextFiberCount,
+        "волокно",
+        "волокна",
+        "волокон",
+      )} в ${nextModuleCount} ${plural(
+        nextModuleCount,
+        "модуль",
+        "модуля",
+        "модулей",
+      )} по ${nextLayout.moduleCapacity}. Нужно ${suggestModuleCount(nextFiberCount)} ${plural(
+        suggestModuleCount(nextFiberCount),
+        "модуль",
+        "модуля",
+        "модулей",
+      )}.`,
     };
   }
+  const nextCapacity = nextLayout.moduleCapacity;
   const layoutChanged =
     nextFiberCount !== cable.fiberCount ||
     nextCapacity !== cable.moduleCapacity ||
@@ -228,7 +255,7 @@ export async function updateCable(id: string, formData: FormData) {
   );
   const planned = buildFibers(
     nextFiberCount,
-    nextCapacity,
+    nextModuleCount,
     d.colorScheme ?? cable.colorScheme,
     d.colorOrder ?? cable.colorOrder,
   );
@@ -254,7 +281,7 @@ export async function updateCable(id: string, formData: FormData) {
   // совпадает со схемой. Вручную изменённые цвета не затираются.
   const previousPalette = buildFibers(
     nextFiberCount,
-    nextCapacity,
+    nextModuleCount,
     cable.colorScheme,
     cable.colorOrder,
   );

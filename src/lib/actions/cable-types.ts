@@ -3,19 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { MODULE_CAPACITIES } from "@/lib/cable-layout";
+import { cableLayout, plural, suggestModuleCount } from "@/lib/cable-layout";
 import { isColorScheme } from "@/lib/colors";
 
 const presetSchema = z.object({
   name: z.string().trim().min(1, "Укажите название типа").max(80),
   fiberCount: z.coerce.number().int().min(1).max(1152),
   moduleCount: z.coerce.number().int().min(1).max(96),
-  moduleCapacity: z.coerce
-    .number()
-    .int()
-    .refine((value) => (MODULE_CAPACITIES as readonly number[]).includes(value), {
-      message: `Волокон в модуле: допустимо ${MODULE_CAPACITIES.join(", ")}`,
-    }),
   colorScheme: z
     .string()
     .optional()
@@ -47,10 +41,41 @@ function nullify(value?: string) {
   return trimmed ? trimmed : null;
 }
 
+/**
+ * Ёмкость модуля в типах кабелей тоже не вводится: она выводится из
+ * количества волокон и модулей, как и в самом кабеле.
+ */
+function capacityFor(fiberCount: number, moduleCount: number) {
+  const layout = cableLayout(fiberCount, moduleCount);
+  if (!layout.fits) {
+    return {
+      error: `Не помещается: ${fiberCount} ${plural(
+        fiberCount,
+        "волокно",
+        "волокна",
+        "волокон",
+      )} в ${moduleCount} ${plural(
+        moduleCount,
+        "модуль",
+        "модуля",
+        "модулей",
+      )} по ${layout.moduleCapacity}. Нужно ${suggestModuleCount(fiberCount)} ${plural(
+        suggestModuleCount(fiberCount),
+        "модуль",
+        "модуля",
+        "модулей",
+      )}.`,
+    } as const;
+  }
+  return layout.moduleCapacity;
+}
+
 export async function createCableType(formData: FormData) {
   const parsed = presetSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля" };
   const data = parsed.data;
+  const capacity = capacityFor(data.fiberCount, data.moduleCount);
+  if (typeof capacity !== "number") return capacity;
 
   const duplicate = await prisma.cableTypePreset.findUnique({
     where: { name: data.name },
@@ -64,7 +89,7 @@ export async function createCableType(formData: FormData) {
       name: data.name,
       fiberCount: data.fiberCount,
       moduleCount: data.moduleCount,
-      moduleCapacity: data.moduleCapacity,
+      moduleCapacity: capacity,
       colorScheme: data.colorScheme,
       moduleColors: data.moduleColors,
       ownership: data.ownership ?? "OURS",
@@ -82,6 +107,8 @@ export async function updateCableType(id: string, formData: FormData) {
   const parsed = presetSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля" };
   const data = parsed.data;
+  const capacity = capacityFor(data.fiberCount, data.moduleCount);
+  if (typeof capacity !== "number") return capacity;
 
   const clash = await prisma.cableTypePreset.findFirst({
     where: { name: data.name, NOT: { id } },
@@ -95,7 +122,7 @@ export async function updateCableType(id: string, formData: FormData) {
       name: data.name,
       fiberCount: data.fiberCount,
       moduleCount: data.moduleCount,
-      moduleCapacity: data.moduleCapacity,
+      moduleCapacity: capacity,
       colorScheme: data.colorScheme,
       moduleColors: data.moduleColors,
       ownership: data.ownership ?? "OURS",

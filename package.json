@@ -1,6 +1,6 @@
 {
   "name": "fiber-splice-scheme",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Учёт оптических сварок в муфтах: схема, фото и документ для заказчика",
   "private": true,
   "license": "MIT",

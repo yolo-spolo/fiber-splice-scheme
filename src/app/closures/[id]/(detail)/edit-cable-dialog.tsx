@@ -5,9 +5,11 @@ import { updateCable } from "@/lib/actions/cables";
 import { CABLE_SHEATH_COLORS } from "@/lib/cable-types";
 import { Field, SubmitButton, Textarea } from "@/components/ui/fields";
 import { CableLayoutPreview } from "@/components/cable-layout-preview";
-import { ModuleCapacitySelect } from "@/components/module-capacity-select";
 import { ColorSchemeSelect } from "@/components/color-scheme-select";
-import { CountField, LayoutSuggestions } from "@/components/count-field";
+import { CountField, ModuleCountHint } from "@/components/count-field";
+import { CableTemplatePicker } from "@/components/cable-template-picker";
+import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
+import { cableLayout } from "@/lib/cable-layout";
 
 type EditableCable = {
   id: string;
@@ -38,7 +40,6 @@ export function EditCableDialog({
   const [error, setError] = useState<string | null>(null);
   const [countText, setCountText] = useState(String(cable.fiberCount));
   const [modulesText, setModulesText] = useState(String(cable.moduleCount));
-  const [moduleCapacity, setModuleCapacity] = useState(cable.moduleCapacity);
   const [ownership, setOwnership] = useState(cable.ownership);
   const [sheathColor, setSheathColor] = useState(cable.sheathColor ?? "");
   const [colorScheme, setColorScheme] = useState(cable.colorScheme);
@@ -47,15 +48,26 @@ export function EditCableDialog({
 
   const count = Number(countText) || 0;
   const modules = Number(modulesText) || 0;
+  // Ёмкость не редактируется: она выводится из волокон и модулей.
+  const layout = cableLayout(count, modules);
+  const moduleCapacity = layout.moduleCapacity;
 
   const layoutChanged =
     count !== cable.fiberCount ||
-    moduleCapacity !== cable.moduleCapacity ||
+    layout.moduleCapacity !== cable.moduleCapacity ||
     modules !== cable.moduleCount ||
     colorScheme !== cable.colorScheme ||
     JSON.stringify(colorOrder) !== JSON.stringify(cable.colorOrder) ||
     JSON.stringify(moduleColors) !== JSON.stringify(cable.moduleColors);
   const willRemoveSpliced = splicedCount > 0 && count < cable.fiberCount;
+
+  /** Шаблон меняет раскладку и цвета модулей; жилы — по текущему стандарту. */
+  function applyTemplate(template: CableTemplate) {
+    setCountText(String(template.fiberCount));
+    setModulesText(String(template.moduleCount));
+    setModuleColors(template.moduleColors);
+    setColorOrder([]);
+  }
 
   return (
     <div
@@ -115,33 +127,28 @@ export function EditCableDialog({
               onChange={setModulesText}
               max={96}
             />
-            <ModuleCapacitySelect
-              name="moduleCapacity"
-              value={moduleCapacity}
-              onChange={setModuleCapacity}
-            />
           </div>
 
-          <LayoutSuggestions
+          <ModuleCountHint fiberCount={count} moduleCount={modules} />
+
+          <CableTemplatePicker
             fiberCount={count}
             moduleCount={modules}
-            moduleCapacity={moduleCapacity}
-            onPick={(layout) => {
-              setModulesText(String(layout.moduleCount));
-              setModuleCapacity(layout.moduleCapacity);
+            scheme={colorScheme}
+            onStandardChange={(standard: CableStandard) => {
+              setColorScheme(standard);
+              setColorOrder([]);
             }}
+            onPick={applyTemplate}
           />
 
           <CableLayoutPreview
             fiberCount={count}
             moduleCount={modules}
-            moduleCapacity={moduleCapacity}
             scheme={colorScheme}
+            colorOrder={colorOrder}
             moduleColors={moduleColors}
-            onFix={(layout) => {
-              setModulesText(String(layout.moduleCount));
-              setModuleCapacity(layout.moduleCapacity);
-            }}
+            onFix={(next) => setModulesText(String(next.moduleCount))}
           />
 
           <ColorSchemeSelect

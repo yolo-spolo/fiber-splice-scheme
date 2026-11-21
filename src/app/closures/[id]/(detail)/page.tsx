@@ -22,7 +22,6 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
       name: true,
       fiberCount: true,
       moduleCount: true,
-      moduleCapacity: true,
       colorScheme: true,
       colorOrder: true,
       moduleColors: true,

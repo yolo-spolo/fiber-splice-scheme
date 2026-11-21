@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { createCable } from "@/lib/actions/cables";
 import { CABLE_SHEATH_COLORS } from "@/lib/cable-types";
-import { Field, Select, SubmitButton } from "@/components/ui/fields";
+import { Field, SubmitButton } from "@/components/ui/fields";
 import { CableLayoutPreview } from "@/components/cable-layout-preview";
-import { ModuleCapacitySelect } from "@/components/module-capacity-select";
 import { ColorSchemeSelect } from "@/components/color-scheme-select";
-import { CountField, LayoutSuggestions } from "@/components/count-field";
-
-const FIBER_PRESETS = [4, 8, 12, 24, 48, 96];
+import { CountField, ModuleCountHint } from "@/components/count-field";
+import { CableTemplatePicker } from "@/components/cable-template-picker";
+import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
+import { cableLayout } from "@/lib/cable-layout";
 
 export function NewCableDialog({
   closureId,
@@ -23,7 +23,6 @@ export function NewCableDialog({
     name: string;
     fiberCount: number;
     moduleCount: number;
-    moduleCapacity: number;
     colorScheme: string;
     colorOrder: number[];
     moduleColors?: number[];
@@ -35,9 +34,10 @@ export function NewCableDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [typeName, setTypeName] = useState("");
+  // 24 волокна в одном модуле не помещаются: диалог открывался
+  // с красной плашкой. По умолчанию — 24 волокна в 2 модулях.
   const [countText, setCountText] = useState("24");
-  const [modulesText, setModulesText] = useState("1");
-  const [moduleCapacity, setModuleCapacity] = useState(12);
+  const [modulesText, setModulesText] = useState("2");
   const [sheathColor, setSheathColor] = useState("");
   const [ownership, setOwnership] = useState("OURS");
   const [colorScheme, setColorScheme] = useState("TIA598");
@@ -46,6 +46,7 @@ export function NewCableDialog({
 
   const count = Number(countText) || 0;
   const modules = Number(modulesText) || 0;
+  const layout = cableLayout(count, modules);
 
   function applyType(id: string) {
     const preset = cableTypes.find((t) => t.id === id);
@@ -56,12 +57,19 @@ export function NewCableDialog({
     setTypeName(preset.name);
     setCountText(String(preset.fiberCount));
     setModulesText(String(preset.moduleCount));
-    setModuleCapacity(preset.moduleCapacity);
     setSheathColor(preset.sheathColor ?? "");
     setOwnership(preset.ownership);
     setColorScheme(preset.colorScheme);
     setColorOrder(preset.colorOrder);
     setModuleColors(preset.moduleColors ?? []);
+  }
+
+  /** Шаблон выставляет раскладку и цвета модулей; стандарт остаётся выбранным. */
+  function applyTemplate(template: CableTemplate) {
+    setCountText(String(template.fiberCount));
+    setModulesText(String(template.moduleCount));
+    setModuleColors(template.moduleColors);
+    setColorOrder([]);
   }
 
   return (
@@ -131,7 +139,8 @@ export function NewCableDialog({
                   <option value="">— свой вариант —</option>
                   {cableTypes.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {t.name} — {t.fiberCount} вол., {t.moduleCount} × {t.moduleCapacity}
+                      {t.name} — {t.fiberCount} вол., {t.moduleCount} ×{" "}
+                      {cableLayout(t.fiberCount, t.moduleCount).moduleCapacity}
                     </option>
                   ))}
                 </select>
@@ -148,32 +157,26 @@ export function NewCableDialog({
                 key={`type-${typeName}`}
               />
 
-              <div>
-                <span className="label">Количество волокон</span>
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {FIBER_PRESETS.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setCountText(String(n))}
-                      className={`chip cursor-pointer px-2.5 py-1 ${
-                        count === n ? "!border-[var(--color-accent)] !bg-[var(--color-accent-soft)]" : ""
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
+              <CableTemplatePicker
+                fiberCount={count}
+                moduleCount={modules}
+                scheme={colorScheme}
+                onStandardChange={(standard: CableStandard) => {
+                  setColorScheme(standard);
+                  setColorOrder([]);
+                }}
+                onPick={applyTemplate}
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2">
                 <CountField
+                  label="Количество волокон"
                   name="fiberCount"
                   value={countText}
                   onChange={setCountText}
                   max={1152}
                   placeholder="24"
                 />
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
                 <CountField
                   label="Количество модулей"
                   name="moduleCount"
@@ -183,22 +186,9 @@ export function NewCableDialog({
                   placeholder="1"
                   hint="Сколько трубок в кабеле"
                 />
-                <ModuleCapacitySelect
-                  name="moduleCapacity"
-                  value={moduleCapacity}
-                  onChange={setModuleCapacity}
-                />
               </div>
 
-              <LayoutSuggestions
-                fiberCount={count}
-                moduleCount={modules}
-                moduleCapacity={moduleCapacity}
-                onPick={(layout) => {
-                  setModulesText(String(layout.moduleCount));
-                  setModuleCapacity(layout.moduleCapacity);
-                }}
-              />
+              <ModuleCountHint fiberCount={count} moduleCount={modules} />
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block">
@@ -234,13 +224,10 @@ export function NewCableDialog({
               <CableLayoutPreview
                 fiberCount={count}
                 moduleCount={modules}
-                moduleCapacity={moduleCapacity}
                 scheme={colorScheme}
+                colorOrder={colorOrder}
                 moduleColors={moduleColors}
-                onFix={(layout) => {
-                  setModulesText(String(layout.moduleCount));
-                  setModuleCapacity(layout.moduleCapacity);
-                }}
+                onFix={(next) => setModulesText(String(next.moduleCount))}
               />
 
               <ColorSchemeSelect
@@ -250,7 +237,7 @@ export function NewCableDialog({
                 onColorOrderChange={setColorOrder}
                 moduleColors={moduleColors}
                 onModuleColorsChange={setModuleColors}
-                moduleCapacity={moduleCapacity}
+                moduleCapacity={layout.moduleCapacity}
                 moduleCount={modules}
               />
 
