@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fiber
+          POSTGRES_PASSWORD: fiber
+          POSTGRES_DB: fiber
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fiber -d fiber"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://fiber:fiber@localhost:5432/fiber?schema=public
+      # Только для CI: база одноразовая, приложение никуда не публикуется.
+      AUTH_PASSWORD: ci-password
+      AUTH_SECRET: ci-secret-not-used-in-production
+      APP_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Схема БД
+        run: npx prisma db push
+
+      - name: Шаблон .env должен требовать заполнения
+        run: |
+          cp .env.example .env
+          if node scripts/check-env.mjs; then
+            echo "::error::.env.example проходит проверку без правок — в шаблоне настоящие секреты?"
+            exit 1
+          fi
+          rm .env
+
+      - name: Юнит-тесты
+        run: npm test
+
+      - name: Сборка
+        run: npm run build
