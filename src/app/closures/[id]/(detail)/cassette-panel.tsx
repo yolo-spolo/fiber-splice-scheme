@@ -86,7 +86,7 @@ export function CassettePanel({
                 </span>
               </div>
               {c.label && <div className="truncate text-[11.5px] text-[var(--color-ink-400)]">{c.label}</div>}
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#eef2f7]">
+        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-track)]">
                 <div
                   className={`h-full ${overflow ? "bg-[var(--color-danger)]" : "bg-[var(--color-accent)]"}`}
                   style={{ width: `${Math.min(100, (count / c.capacity) * 100)}%` }}

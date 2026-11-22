@@ -8,6 +8,7 @@ import { StatusControl } from "./status-control";
 import { EditClosureButton } from "@/components/edit-dialogs";
 import { LocationMap } from "@/components/location-map";
 import { formatPostalAddress } from "@/lib/address";
+import { requireSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function ClosureLayout({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  await requireSession(`/closures/${id}`);
   const closure = await loadClosure(id);
   if (!closure) notFound();
   const stats = fiberStats(closure);

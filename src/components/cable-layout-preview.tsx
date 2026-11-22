@@ -59,7 +59,7 @@ export function CableLayoutPreview({
             <div key={row.number} className="flex items-center gap-2">
               <span className="flex w-[62px] shrink-0 items-center gap-1 text-[10.5px] text-[var(--color-ink-400)]">
                 <span
-                  className="h-3 w-3 shrink-0 rounded-[2px] border border-black/25"
+        className="h-3 w-3 shrink-0 rounded-[2px] border border-[var(--color-swatch-line)]"
                   style={swatchBackground(tubes[row.number - 1] ?? 0)}
                   title={colorByCode(tubes[row.number - 1] ?? 0).name}
                 />
@@ -74,7 +74,7 @@ export function CableLayoutPreview({
                     <span
                       key={i}
                       className={`h-3 w-3 rounded-[2px] border ${
-                        filled ? "border-black/25" : "border-dashed border-[var(--color-line)] bg-white"
+        filled ? "border-[var(--color-swatch-line)]" : "border-dashed border-[var(--color-line)] bg-[var(--color-paper)]"
                       }`}
                       style={filled ? swatchBackground(code) : undefined}
                       title={filled ? `${i + 1} · ${color.name}` : "свободно"}

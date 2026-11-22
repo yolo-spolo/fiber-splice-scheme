@@ -114,7 +114,7 @@ export function PhotoManager({
             <button
               key={photo.id}
               type="button"
-              className="group overflow-hidden rounded-xl border border-[var(--color-line)] bg-white text-left transition hover:border-[var(--color-accent)]"
+              className="group overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] text-left transition hover:border-[var(--color-accent)]"
               onClick={() => openPhoto(photo)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -132,7 +132,7 @@ export function PhotoManager({
 
       {active && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[var(--color-ink-950)]/85 p-3 sm:p-6">
-          <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col overflow-hidden rounded-2xl bg-white">
+          <div className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--color-paper)]">
             <div className="flex items-center gap-2 border-b border-[var(--color-line)] px-3.5 py-2.5">
               <span className="flex-1 truncate text-[13.5px] font-semibold">{active.caption || "Фото муфты"}</span>
               <button
@@ -161,7 +161,7 @@ export function PhotoManager({
                     className="absolute -translate-x-1/2 -translate-y-1/2"
                     style={{ left: `${pin.x * 100}%`, top: `${pin.y * 100}%` }}
                   >
-                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-accent)] text-[11px] font-bold text-white ring-2 ring-white">
+                    <span className="grid h-6 w-6 place-items-center rounded-full bg-[var(--color-accent)] text-[11px] font-bold text-[var(--color-on-accent)] ring-2 ring-[var(--color-paper)]">
                       {i + 1}
                     </span>
                   </span>

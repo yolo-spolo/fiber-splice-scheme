@@ -134,7 +134,7 @@ export function SpliceScheme({
             </span>
           </figcaption>
 
-          <div className="space-y-1.5 rounded-lg border border-[var(--color-line)] bg-white p-1.5">
+          <div className="space-y-1.5 rounded-lg border border-[var(--color-line)] bg-[var(--color-paper)] p-1.5">
             {block.pairs.map((pair) => {
               const cableA = cables.find((c) => c.id === pair.cableA);
               const cableB = cables.find((c) => c.id === pair.cableB);
@@ -215,13 +215,13 @@ function PairScheme({
       role="img"
       aria-label={`Схема сварок ${cableA?.label ?? ""} и ${cableB?.label ?? ""}`}
     >
-      <text x={labelX} y={13} fontSize={compact ? 10 : 11} fontWeight="700" fill="#111a2c">
+      <text x={labelX} y={13} fontSize={compact ? 10 : 11} fontWeight="700" fill="var(--color-ink-900)">
         {cableA?.label}
       </text>
-      <text x={width - labelX} y={13} fontSize={compact ? 10 : 11} fontWeight="700" fill="#111a2c" textAnchor="end">
+      <text x={width - labelX} y={13} fontSize={compact ? 10 : 11} fontWeight="700" fill="var(--color-ink-900)" textAnchor="end">
         {cableB?.label}
       </text>
-      <line x1={labelX} y1={head - 5} x2={width - labelX} y2={head - 5} stroke="#dde3ec" strokeWidth="1" />
+      <line x1={labelX} y1={head - 5} x2={width - labelX} y2={head - 5} stroke="var(--color-line)" strokeWidth="1" />
 
       {pair.rows.map((splice, index) => {
         const leftRef = fiberById.get(splice.fiberAId)!;
@@ -240,7 +240,7 @@ function PairScheme({
               cy={y}
               r={tube / 2}
               fill={colorByCode(leftRef.moduleColorCode).hex}
-              stroke="rgba(0,0,0,0.4)"
+              stroke="var(--color-swatch-line)"
               strokeWidth="0.7"
               strokeDasharray={colorByCode(leftRef.moduleColorCode).striped ? "2 1.2" : undefined}
             />
@@ -251,14 +251,14 @@ function PairScheme({
               height={chip}
               rx="2.5"
               fill={leftColor.hex}
-              stroke="rgba(0,0,0,0.32)"
+              stroke="var(--color-swatch-line)"
               strokeWidth="0.8"
             />
-            <text x={labelX + tube + chip + 7} y={y + 3.4} fontSize={textSize} fill="#253148">
+            <text x={labelX + tube + chip + 7} y={y + 3.4} fontSize={textSize} fill="var(--color-ink-700)">
               М{leftRef.moduleIndex}:{leftRef.position}
             </text>
             {!compact && (
-              <text x={labelX + tube + chip + 47} y={y + 3.4} fontSize={shortSize} fill="#7c8aa5">
+              <text x={labelX + tube + chip + 47} y={y + 3.4} fontSize={shortSize} fill="var(--color-ink-400)">
                 {leftColor.short}
               </text>
             )}
@@ -267,7 +267,7 @@ function PairScheme({
               <path
                 d={`M ${mid - gap} ${y} C ${mid - gap / 3} ${y}, ${mid + gap / 3} ${y}, ${mid + gap} ${y}`}
                 fill="none"
-                stroke="rgba(0,0,0,0.35)"
+                stroke="var(--color-line-backing)"
                 strokeWidth={compact ? 2.6 : 3}
                 strokeLinecap="round"
               />
@@ -285,7 +285,7 @@ function PairScheme({
             <circle cx={mid + gap} cy={y} r="2.2" fill={rightColor.hex} />
 
             {splice.lossDb != null && (
-              <text x={mid} y={y - 4.5} fontSize={compact ? 7.5 : 8.5} fill="#7c8aa5" textAnchor="middle">
+              <text x={mid} y={y - 4.5} fontSize={compact ? 7.5 : 8.5} fill="var(--color-ink-400)" textAnchor="middle">
                 {splice.lossDb.toFixed(2)} дБ
               </text>
             )}
@@ -297,14 +297,14 @@ function PairScheme({
               height={chip}
               rx="2.5"
               fill={rightColor.hex}
-              stroke="rgba(0,0,0,0.32)"
+              stroke="var(--color-swatch-line)"
               strokeWidth="0.8"
             />
             <text
               x={width - labelX - chip - tube - 7}
               y={y + 3.4}
               fontSize={textSize}
-              fill="#253148"
+              fill="var(--color-ink-700)"
               textAnchor="end"
             >
               М{rightRef.moduleIndex}:{rightRef.position}
@@ -314,7 +314,7 @@ function PairScheme({
                 x={width - labelX - chip - tube - 47}
                 y={y + 3.4}
                 fontSize={shortSize}
-                fill="#7c8aa5"
+                fill="var(--color-ink-400)"
                 textAnchor="end"
               >
                 {rightColor.short}
@@ -325,7 +325,7 @@ function PairScheme({
               cy={y}
               r={tube / 2}
               fill={colorByCode(rightRef.moduleColorCode).hex}
-              stroke="rgba(0,0,0,0.4)"
+              stroke="var(--color-swatch-line)"
               strokeWidth="0.7"
               strokeDasharray={colorByCode(rightRef.moduleColorCode).striped ? "2 1.2" : undefined}
             />

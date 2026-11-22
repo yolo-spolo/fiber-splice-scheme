@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authSecretConfigured, isValidSession, SESSION_COOKIE } from "@/lib/auth";
 
-const PUBLIC_PREFIXES = ["/login", "/s/"];
+// /api/auth/* — вход, мастер и выход: доступны до появления сессии.
+const PUBLIC_PREFIXES = ["/login", "/setup", "/s/", "/api/auth/"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -37,7 +37,15 @@ async function newPage(viewport = { width: 1440, height: 1000 }) {
 }
 
 async function login(page) {
+  // На чистой базе сначала показывается мастер первого запуска.
   await page.goto(`${BASE}/login`);
+  if (page.url().includes("/setup")) {
+    await page.fill('input[name="password"]', PASSWORD);
+    await page.fill('input[name="repeat"]', PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(`${BASE}/`);
+    return;
+  }
   await page.fill('input[name="password"]', PASSWORD);
   await page.click('button[type="submit"]');
   await page.waitForURL(`${BASE}/`);
@@ -147,10 +155,7 @@ await context.close();
 
 // ─── Мобильный вид ──────────────────────────────────────────────────────────
 const mobile = await newPage({ width: 390, height: 844 });
-await mobile.page.goto(`${BASE}/login`);
-await mobile.page.fill('input[name="password"]', PASSWORD);
-await mobile.page.click('button[type="submit"]');
-await mobile.page.waitForURL(`${BASE}/`);
+await login(mobile.page);
 await mobile.page.goto(`${BASE}/closures/${closureId}/splice`);
 await mobile.page.waitForSelector("text=Прямая сварка");
 await mobile.page.getByRole("button", { name: "Показать схему" }).click();

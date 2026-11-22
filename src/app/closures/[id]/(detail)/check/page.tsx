@@ -51,7 +51,7 @@ export default async function CheckPage({ params }: { params: Promise<{ id: stri
         }`}
       >
         <span
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-white ${
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-[var(--color-on-accent)] ${
             errors > 0 ? "bg-[var(--color-danger)]" : warnings > 0 ? "bg-[var(--color-warn)]" : "bg-[var(--color-accent)]"
           }`}
         >

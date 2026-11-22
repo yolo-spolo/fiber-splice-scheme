@@ -1,4 +1,5 @@
 import { chromium } from "playwright";
+import { signIn } from "./sign-in.mjs";
 import { mkdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -7,7 +8,7 @@ import path from "node:path";
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const PASSWORD = process.env.AUTH_PASSWORD;
 const OUT = process.env.SHOTS_DIR ?? "e2e/screenshots";
-if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — тот же пароль, что в .env приложения");
+if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — пароль, которым вы входите в приложение");
 
 await mkdir(OUT, { recursive: true });
 
@@ -27,10 +28,7 @@ const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
 
-await page.goto(`${BASE}/login`);
-await page.fill('input[name="password"]', PASSWORD);
-await page.click('button[type="submit"]');
-await page.waitForURL(`${BASE}/`);
+await signIn(page, BASE, PASSWORD);
 
 await page.click("text=ЖК «Северный», корпус 3");
 await page.waitForURL(/\/projects\//);

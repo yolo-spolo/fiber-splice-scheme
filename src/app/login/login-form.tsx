@@ -1,17 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
-import { login } from "@/lib/actions/auth";
-import { SubmitButton } from "@/components/ui/fields";
+import { useFormStatus } from "react-dom";
 
-export function LoginForm({ next }: { next: string }) {
-  const [state, action] = useActionState(
-    async (_prev: { error?: string } | undefined, formData: FormData) => login(formData),
-    undefined,
-  );
-
+/**
+ * Обычная POST-форма на route handler: вход работает и до гидратации,
+ * и с выключенным JavaScript. Ошибка приходит в query-параметре.
+ */
+export function LoginForm({ next, error }: { next: string; error?: string }) {
   return (
-    <form action={action} className="space-y-3.5">
+    <form action="/api/auth/login" method="post" className="space-y-3.5">
       <input type="hidden" name="next" value={next} />
       <label className="block">
         <span className="label">Пароль</span>
@@ -25,14 +22,21 @@ export function LoginForm({ next }: { next: string }) {
           required
         />
       </label>
-      {state?.error && (
+      {error && (
         <p className="rounded-lg bg-[var(--color-danger-soft)] px-3 py-2 text-[13px] font-medium text-[var(--color-danger)]">
-          {state.error}
+          {error}
         </p>
       )}
-      <SubmitButton className="btn btn-primary w-full" pendingText="Проверяю…">
-        Войти
-      </SubmitButton>
+      <SubmitButton />
     </form>
+  );
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className="btn btn-primary w-full" disabled={pending}>
+      {pending ? "Проверяю…" : "Войти"}
+    </button>
   );
 }

@@ -21,37 +21,43 @@ async function hmac(message: string): Promise<string> {
 
 export const SESSION_COOKIE = COOKIE_NAME;
 
-export async function createSessionValue(): Promise<{ value: string; maxAge: number }> {
+/**
+ * Payload: <exp>.<rev>. Ревизия сверяется с БД в приложении, поэтому смена
+ * пароля разлогинивает остальные устройства. Middleware (Edge) БД не видит
+ * и проверяет только подпись и срок.
+ */
+export async function createSessionValue(rev = 0): Promise<{ value: string; maxAge: number }> {
   const exp = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
-  const payload = String(exp);
+  const payload = `${exp}.${rev}`;
   return { value: `${payload}.${await hmac(payload)}`, maxAge: SESSION_DAYS * 24 * 60 * 60 };
 }
 
 export async function isValidSession(value: string | undefined): Promise<boolean> {
-  if (!value) return false;
-  const [payload, sig] = value.split(".");
-  if (!payload || !sig) return false;
-  const exp = Number(payload);
-  if (!Number.isFinite(exp) || exp < Date.now()) return false;
+  return (await readSession(value)) !== null;
+}
+
+/** Возвращает ревизию сессии, если подпись и срок в порядке. */
+export async function readSession(value: string | undefined): Promise<{ rev: number } | null> {
+  if (!value) return null;
+  // payload = "<exp>.<rev>", подпись отделена последней точкой.
+  const cut = value.lastIndexOf(".");
+  if (cut <= 0) return null;
+  const payload = value.slice(0, cut);
+  const sig = value.slice(cut + 1);
+  if (!sig) return null;
+  const [expPart, revPart] = payload.split(".");
+  const exp = Number(expPart);
+  if (!Number.isFinite(exp) || exp < Date.now()) return null;
   const expected = await hmac(payload);
-  if (expected.length !== sig.length) return false;
+  if (expected.length !== sig.length) return null;
   let diff = 0;
   for (let i = 0; i < expected.length; i += 1) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
-  return diff === 0;
+  if (diff !== 0) return null;
+  const rev = Number(revPart);
+  return { rev: Number.isFinite(rev) ? rev : 0 };
 }
 
 /** Secret used by the app process and the Edge middleware must be identical. */
 export function authSecretConfigured(): boolean {
   return Boolean(process.env.AUTH_SECRET);
-}
-
-export function checkPassword(input: string): boolean {
-  const expected = process.env.AUTH_PASSWORD ?? "";
-  if (!expected) return false;
-  if (input.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i += 1) {
-    diff |= input.charCodeAt(i) ^ expected.charCodeAt(i);
-  }
-  return diff === 0;
 }

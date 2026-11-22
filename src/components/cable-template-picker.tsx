@@ -57,7 +57,7 @@ export function CableTemplatePicker({
                 className={`rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold transition ${
                   current
                     ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                    : "border-[var(--color-line)] bg-white text-[var(--color-ink-500)] hover:border-[var(--color-accent)]"
+              : "border-[var(--color-line)] bg-[var(--color-paper)] text-[var(--color-ink-500)] hover:border-[var(--color-accent)]"
                 }`}
               >
                 {standard.label}
@@ -83,7 +83,7 @@ export function CableTemplatePicker({
               } ${
                 current
                   ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                  : "border-[var(--color-line)] bg-white hover:border-[var(--color-accent)]"
+            : "border-[var(--color-line)] bg-[var(--color-paper)] hover:border-[var(--color-accent)]"
               }`}
             >
               {template.label}

@@ -38,7 +38,7 @@ export function LocationMap({
   const approxMeters = Math.round(delta * 2 * 111000);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--color-line)] bg-white">
+    <div className="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)]">
       <div className="relative" style={{ height }}>
         {loaded ? (
           <>
@@ -65,7 +65,7 @@ export function LocationMap({
                 −
               </ZoomButton>
             </div>
-            <span className="pointer-events-none absolute bottom-1.5 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--color-ink-500)]">
+          <span className="pointer-events-none absolute bottom-1.5 left-2 rounded bg-[var(--color-paper)]/85 px-1.5 py-0.5 text-[10px] tabular-nums text-[var(--color-ink-500)]">
               ≈ {approxMeters < 1000 ? `${approxMeters} м` : `${(approxMeters / 1000).toFixed(1)} км`} по ширине
             </span>
           </>
@@ -121,7 +121,7 @@ function ZoomButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--color-line)] bg-white/95 text-[17px] font-semibold leading-none text-[var(--color-ink-700)] shadow-sm transition hover:border-[var(--color-accent)] disabled:opacity-35"
+        className="grid h-8 w-8 place-items-center rounded-lg border border-[var(--color-line-strong)] bg-[var(--color-paper)]/95 text-[17px] font-semibold leading-none text-[var(--color-ink-700)] shadow-sm transition hover:border-[var(--color-accent)] disabled:opacity-35"
     >
       {children}
     </button>

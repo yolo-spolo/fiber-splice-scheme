@@ -16,7 +16,7 @@ export function ClosureTabs({ closureId }: { closureId: string }) {
   const base = `/closures/${closureId}`;
 
   return (
-    <div className="no-print -mx-1 flex gap-1 overflow-x-auto rounded-xl bg-[#eaeef4] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="no-print -mx-1 flex gap-1 overflow-x-auto rounded-xl bg-[var(--color-sunken)] p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {TABS.map((tab) => {
         const href = tab.slug ? `${base}/${tab.slug}` : base;
         const active = tab.slug ? pathname === href : pathname === base;

@@ -14,7 +14,6 @@ const envPath = path.join(root, ".env");
 
 const REQUIRED = [
   { name: "DATABASE_URL", hint: "postgresql://user:password@localhost:5433/fiber?schema=public" },
-  { name: "AUTH_PASSWORD", hint: "пароль для входа, придумайте свой" },
   { name: "AUTH_SECRET", hint: "openssl rand -hex 32" },
   { name: "APP_URL", hint: "http://localhost:3000" },
 ];
@@ -75,11 +74,17 @@ for (const { name, hint } of REQUIRED) {
   if (name === "AUTH_SECRET" && value.length < 32) {
     problems.push("AUTH_SECRET короче 32 символов — сгенерируйте: openssl rand -hex 32");
   }
-  if (name === "AUTH_PASSWORD" && value.length < 8) {
-    problems.push("AUTH_PASSWORD короче 8 символов — выберите пароль надёжнее");
-  }
   if (name === "APP_URL" && !/^https?:\/\//.test(value)) {
     problems.push("APP_URL должен начинаться с http:// или https://");
+  }
+}
+
+// AUTH_PASSWORD необязательна: пароль задаётся при первом запуске.
+// Но если её указали — она должна быть не короче политики приложения.
+const legacyPassword = env.AUTH_PASSWORD;
+if (legacyPassword && !PLACEHOLDERS.some((p) => legacyPassword.toLowerCase().includes(p))) {
+  if (legacyPassword.length < 8) {
+    problems.push("AUTH_PASSWORD короче 8 символов — выберите пароль надёжнее");
   }
 }
 

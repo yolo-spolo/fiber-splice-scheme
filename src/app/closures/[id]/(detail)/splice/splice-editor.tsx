@@ -310,12 +310,12 @@ export function SpliceEditor({
                                 isA
                                   ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] ring-2 ring-[var(--color-accent)]/35"
                                   : isSpliced
-                                    ? "border-[var(--color-line)] bg-[#eef2f7] opacity-55"
-                                    : "border-[var(--color-line)] bg-white hover:border-[var(--color-accent)] hover:shadow-sm"
+                                    ? "border-[var(--color-line)] bg-[var(--color-track)] opacity-55"
+                                    : "border-[var(--color-line)] bg-[var(--color-paper)] hover:border-[var(--color-accent)] hover:shadow-sm"
                               }`}
                             >
                               <span
-                                className="h-3.5 w-full rounded-[3px] border border-black/30"
+                            className="h-3.5 w-full rounded-[3px] border border-[var(--color-swatch-line)]"
                                 style={{ background: color.hex }}
                               />
                               <span className="font-mono text-[10.5px] leading-none text-[var(--color-ink-700)] tabular-nums">
@@ -441,8 +441,8 @@ export function SpliceEditor({
       </div>
 
       {straightOpen && (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-ink-950)]/45 sm:items-center sm:p-4">
-          <div className="w-full max-w-[480px] rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] sm:items-center sm:p-4">
+          <div className="w-full max-w-[480px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
             <h2 className="text-[18px]">Прямая сварка</h2>
             <p className="mt-1 mb-4 text-[12.5px] text-[var(--color-ink-500)]">
               Сопоставит свободные волокна двух кабелей по порядку (1-е с 1-м, 2-е со 2-м). Уже
@@ -519,7 +519,7 @@ function ModuleHeading({ moduleIndex, colorCode }: { moduleIndex: number; colorC
   return (
     <div className="mb-1 flex items-center gap-1.5">
       <span
-        className="h-3 w-3 shrink-0 rounded-[2px] border border-black/30"
+                        className="h-3 w-3 shrink-0 rounded-[2px] border border-[var(--color-swatch-line)]"
         style={swatchBackground(colorCode)}
       />
       <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--color-ink-500)]">

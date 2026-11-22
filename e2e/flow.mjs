@@ -1,10 +1,11 @@
 import { chromium } from "playwright";
+import { signIn } from "./sign-in.mjs";
 import { mkdir } from "node:fs/promises";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const PASSWORD = process.env.AUTH_PASSWORD;
 const OUT = process.env.SHOTS_DIR ?? "e2e/screenshots";
-if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — тот же пароль, что в .env приложения");
+if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — пароль, которым вы входите в приложение");
 
 await mkdir(OUT, { recursive: true });
 
@@ -22,10 +23,7 @@ function step(name) {
 }
 
 step("вход");
-await page.goto(`${BASE}/login`);
-await page.fill('input[name="password"]', PASSWORD);
-await page.click('button[type="submit"]');
-await page.waitForURL(`${BASE}/`);
+await signIn(page, BASE, PASSWORD);
 await page.screenshot({ path: `${OUT}/01-home.png`, fullPage: true });
 
 step("объект");
@@ -85,10 +83,7 @@ step("мобильный вид");
 await context.close();
 const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 const mp = await mobile.newPage();
-await mp.goto(`${BASE}/login`);
-await mp.fill('input[name="password"]', PASSWORD);
-await mp.click('button[type="submit"]');
-await mp.waitForURL(`${BASE}/`);
+await signIn(mp, BASE, PASSWORD);
 await mp.screenshot({ path: `${OUT}/09-mobile-home.png`, fullPage: true });
 await mp.goto(`${BASE}/closures/${closureId}/splice`);
 await mp.screenshot({ path: `${OUT}/10-mobile-splice.png`, fullPage: true });

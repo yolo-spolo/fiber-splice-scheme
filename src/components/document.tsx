@@ -49,8 +49,12 @@ export function SpliceDocument({
   const totalFibers = closure.cables.reduce((n, c) => n + c.fibers.length, 0);
   const photos = closure.photos.slice(0, compact ? 2 : 4);
 
+  // Документ всегда на бумаге: светлый остров, даже если интерфейс тёмный.
   return (
-    <article className="document mx-auto w-full max-w-[820px] min-w-0 bg-white text-[var(--color-ink-900)]">
+    <article
+      data-theme="light"
+      className="document mx-auto w-full max-w-[820px] min-w-0 bg-[var(--color-paper)] text-[var(--color-ink-900)]"
+    >
       <header className="print-page mb-5 border-b-2 border-[var(--color-ink-900)] pb-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -276,7 +280,7 @@ export function SpliceDocument({
                         const a = fiberById.get(splice.fiberAId);
                         const b = fiberById.get(splice.fiberBId);
                         return (
-                          <tr key={splice.id} className="border-b border-[#eef2f7]">
+                      <tr key={splice.id} className="border-b border-[var(--color-track)]">
                             <Td className="w-6 tabular-nums text-[var(--color-ink-400)]">{index + 1}</Td>
                             <Td>
                               <FiberCell fiber={a} short />

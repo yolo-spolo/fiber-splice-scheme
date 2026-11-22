@@ -4,11 +4,21 @@ import { CLOSURE_KINDS } from "@/lib/cable-types";
 import { SPLICE_KIND_LABELS, FIBER_STATUS_LABELS } from "@/lib/labels";
 import { ensureCableTypeDefaults } from "@/lib/cable-presets";
 import { prisma } from "@/lib/prisma";
+import { requireSession } from "@/lib/session";
+import { authErrorMessage } from "@/lib/auth-errors";
 import { CableTypesPanel } from "./cable-types-panel";
+import { ThemePanel } from "./theme-panel";
+import { PasswordPanel } from "./password-panel";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; ok?: string }>;
+}) {
+  await requireSession("/settings");
+  const { error, ok } = await searchParams;
   await ensureCableTypeDefaults();
   const presets = await prisma.cableTypePreset.findMany({ orderBy: [{ order: "asc" }, { name: "asc" }] });
 
@@ -20,6 +30,21 @@ export default async function SettingsPage() {
       />
 
       <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <section className="card p-4">
+            <h2 className="text-[15px]">Оформление</h2>
+            <p className="mt-0.5 mb-3 text-[12.5px] text-[var(--color-ink-500)]">
+              Тема применяется сразу и запоминается на этом устройстве. Документ для заказчика
+              и печать всегда остаются светлыми.
+            </p>
+            <ThemePanel />
+          </section>
+          <PasswordPanel
+            error={authErrorMessage(error)}
+            ok={ok === "password" ? "Пароль обновлён. Остальные устройства выйдут из системы." : undefined}
+          />
+        </div>
+
         <section className="card p-4">
           <h2 className="text-[15px]">Палитра волокон</h2>
           <p className="mt-0.5 mb-3 text-[12.5px] text-[var(--color-ink-500)]">

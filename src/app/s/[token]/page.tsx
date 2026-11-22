@@ -72,9 +72,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   const closure = await loadClosure(closureId);
   if (!closure) notFound();
 
+  // Публичная схема для заказчика — всегда светлая, независимо от темы исполнителя.
   return (
-    <div className="min-h-dvh bg-[var(--color-canvas)]">
-      <div className="no-print border-b border-[var(--color-line)] bg-white">
+    <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+      <div className="no-print border-b border-[var(--color-line)] bg-[var(--color-paper)]">
         <div className="mx-auto flex max-w-[900px] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold">{closure.project.name}</div>
@@ -88,7 +89,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         </div>
       </div>
       <div className="mx-auto max-w-[900px] px-4 py-6 print:max-w-none print:p-0">
-        <div className="rounded-xl bg-white p-6 shadow-sm sm:p-10 print:rounded-none print:p-0 print:shadow-none">
+        <div className="rounded-xl bg-[var(--color-paper)] p-6 shadow-sm sm:p-10 print:rounded-none print:p-0 print:shadow-none">
           <SpliceDocument closure={closure} fileBase={`/s/${token}/file`} />
         </div>
       </div>

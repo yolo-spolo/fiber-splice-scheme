@@ -105,7 +105,7 @@ export function CableCard({
         </div>
       </div>
 
-      <div className="h-1 w-full bg-[#eef2f7]">
+      <div className="h-1 w-full bg-[var(--color-track)]">
         <div
           className="h-full bg-[var(--color-accent)] transition-[width]"
           style={{ width: `${cable.fiberCount ? (doneCount / cable.fiberCount) * 100 : 0}%` }}
@@ -118,7 +118,7 @@ export function CableCard({
             <div key={moduleIndex}>
               <div className="mb-1.5 flex items-center gap-1.5">
                 <span
-                  className="h-3 w-3 shrink-0 rounded-[2px] border border-black/30"
+                  className="h-3 w-3 shrink-0 rounded-[2px] border border-[var(--color-swatch-line)]"
                   style={swatchBackground(
                     moduleColorCode(moduleIndex, cable.colorScheme, cable.moduleColors),
                   )}
@@ -147,7 +147,7 @@ export function CableCard({
                           ? "border-[var(--color-danger-soft)] bg-[var(--color-danger-soft)]/40"
                           : isSpliced
                             ? "border-[var(--color-accent-soft)] bg-[var(--color-accent-soft)]/45"
-                            : "border-[var(--color-line)] bg-white"
+              : "border-[var(--color-line)] bg-[var(--color-paper)]"
                       }`}
                       title={`${color.name} · ${FIBER_STATUS_LABELS[fiber.status]}`}
                     >
@@ -178,9 +178,9 @@ export function CableCard({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-ink-950)]/45 sm:items-center sm:p-4"
+        className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] sm:items-center sm:p-4"
         >
-          <div className="w-full max-w-[420px] rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
+          <div className="w-full max-w-[420px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-[16px]">

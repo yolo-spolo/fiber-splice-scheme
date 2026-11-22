@@ -1,24 +1,112 @@
 @import "tailwindcss";
 
-@theme {
+/*
+ * Тема построена на CSS-переменных: компоненты ссылаются на var(--color-*),
+ * а переключение меняет только значения переменных на <html data-theme>.
+ * static — чтобы Tailwind не выбрасывал токены, используемые лишь в правилах
+ * этого файла, а не в классах разметки.
+ */
+@theme static {
   --color-ink-950: #0b1220;
   --color-ink-900: #111a2c;
   --color-ink-800: #1a2438;
   --color-ink-700: #253148;
   --color-ink-500: #55637e;
-  --color-ink-400: #7c8aa5;
+  /* Было #7c8aa5 — 3.48:1 на белом, ниже AA для подсказок 11–13px. */
+  --color-ink-400: #5f6c86;
   --color-line: #dde3ec;
+  /* Границы интерактивных полей: нужны 3:1 к фону поля. */
+  --color-line-strong: #8a96a8;
   --color-canvas: #f5f7fa;
   --color-paper: #ffffff;
+  --color-field: #ffffff;
+  --color-sunken: #eaeef4;
+  --color-track: #eef2f7;
+  --color-overlay: rgb(11 18 32 / 0.45);
   --color-accent: #0f766e;
+  --color-accent-hover: #0d625c;
   --color-accent-soft: #ccfbf1;
+  /* Текст на акцентной плашке: в тёмной теме белый на акценте даёт 1.86:1. */
+  --color-on-accent: #ffffff;
+  --color-accent-ring: rgb(15 118 110 / 0.18);
   --color-danger: #b42318;
   --color-danger-soft: #fee4e2;
   --color-warn: #b54708;
   --color-warn-soft: #fef0c7;
+  --color-swatch-line: rgb(0 0 0 / 0.22);
+  /* Подложка под светлые волокна: на белой бумаге нужна, на тёмной — нет. */
+  --color-line-backing: rgb(0 0 0 / 0.35);
   --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
 }
+
+/* Переопределение вне @layer: так оно гарантированно перебивает @theme. */
+:root[data-theme="dark"] {
+  --color-ink-950: #05090e;
+  --color-ink-900: #e6edf5;
+  --color-ink-800: #d5dfeb;
+  --color-ink-700: #c3cddb;
+  --color-ink-500: #93a1b4;
+  --color-ink-400: #7f8ea8;
+  --color-line: #2b3849;
+  --color-line-strong: #5d7089;
+  --color-canvas: #0b1017;
+  --color-paper: #121a24;
+  --color-field: #1a2431;
+  --color-sunken: #0a0f16;
+  --color-track: #2b3849;
+  --color-overlay: rgb(3 7 12 / 0.72);
+  --color-accent: #2dd4bf;
+  --color-accent-hover: #5eead4;
+  --color-accent-soft: #123a37;
+  --color-on-accent: #06201d;
+  --color-accent-ring: rgb(45 212 191 / 0.28);
+  --color-danger: #f97066;
+  --color-danger-soft: #3a1512;
+  --color-warn: #fdb022;
+  --color-warn-soft: #3a2a0c;
+  --color-swatch-line: rgb(255 255 255 / 0.3);
+  --color-line-backing: transparent;
+  color-scheme: dark;
+}
+
+/*
+ * Светлые «острова»: документ заказчика и схема сварок всегда на бумаге.
+ * Значения повторяют @theme — это нужно, чтобы вложенный [data-theme="light"]
+ * действительно переключал токены, а не наследовал тёмные от <html>.
+ */
+:root[data-theme="light"],
+[data-theme="light"] {
+  --color-ink-950: #0b1220;
+  --color-ink-900: #111a2c;
+  --color-ink-800: #1a2438;
+  --color-ink-700: #253148;
+  --color-ink-500: #55637e;
+  --color-ink-400: #5f6c86;
+  --color-line: #dde3ec;
+  --color-line-strong: #8a96a8;
+  --color-canvas: #f5f7fa;
+  --color-paper: #ffffff;
+  --color-field: #ffffff;
+  --color-sunken: #eaeef4;
+  --color-track: #eef2f7;
+  --color-overlay: rgb(11 18 32 / 0.45);
+  --color-accent: #0f766e;
+  --color-accent-hover: #0d625c;
+  --color-accent-soft: #ccfbf1;
+  --color-on-accent: #ffffff;
+  --color-accent-ring: rgb(15 118 110 / 0.18);
+  --color-danger: #b42318;
+  --color-danger-soft: #fee4e2;
+  --color-warn: #b54708;
+  --color-warn-soft: #fef0c7;
+  --color-swatch-line: rgb(0 0 0 / 0.22);
+  --color-line-backing: rgb(0 0 0 / 0.35);
+  color-scheme: light;
+}
+
+/* dark:... — переключение иконок темы без расхождения сервера и клиента. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @layer base {
   html {
@@ -68,10 +156,10 @@
   }
   .field {
     width: 100%;
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--color-line-strong);
     border-radius: 10px;
     padding: 9px 11px;
-    background: #fff;
+    background: var(--color-field);
     outline: none;
     transition: border-color 0.12s, box-shadow 0.12s;
     -webkit-appearance: none;
@@ -79,7 +167,7 @@
   }
   .field:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgb(15 118 110 / 0.14);
+    box-shadow: 0 0 0 3px var(--color-accent-ring);
   }
   .label {
     display: block;
@@ -108,21 +196,21 @@
   }
   .btn-primary {
     background: var(--color-accent);
-    color: #fff;
+    color: var(--color-on-accent);
   }
   .btn-primary:hover:not(:disabled) {
-    background: #0d625c;
+    background: var(--color-accent-hover);
   }
   .btn-ghost {
-    background: #fff;
+    background: var(--color-paper);
     border-color: var(--color-line);
     color: var(--color-ink-800);
   }
   .btn-ghost:hover:not(:disabled) {
-    background: var(--color-canvas);
+    background: var(--color-sunken);
   }
   .btn-danger {
-    background: #fff;
+    background: var(--color-paper);
     border-color: var(--color-danger-soft);
     color: var(--color-danger);
   }
@@ -138,13 +226,13 @@
     font-size: 12px;
     font-weight: 600;
     border: 1px solid var(--color-line);
-    background: #fff;
+    background: var(--color-paper);
   }
   .swatch {
     width: 14px;
     height: 14px;
     border-radius: 4px;
-    border: 1px solid rgb(0 0 0 / 0.22);
+    border: 1px solid var(--color-swatch-line);
     flex: none;
   }
   .tab {
@@ -155,7 +243,7 @@
     color: var(--color-ink-500);
   }
   .tab[data-active="true"] {
-    background: #fff;
+    background: var(--color-paper);
     color: var(--color-ink-900);
     box-shadow: 0 1px 2px rgb(16 24 40 / 0.08);
   }
@@ -165,6 +253,37 @@
   @page {
     size: A4 portrait;
     margin: 12mm 11mm 14mm;
+  }
+  /*
+   * Документ всегда на бумаге. Иначе при печати из тёмной темы остаётся
+   * светлый текст на принудительно белом фоне — нечитаемо.
+   */
+  :root,
+  [data-theme] {
+    --color-ink-950: #0b1220;
+    --color-ink-900: #111a2c;
+    --color-ink-800: #1a2438;
+    --color-ink-700: #253148;
+    --color-ink-500: #55637e;
+    --color-ink-400: #5f6c86;
+    --color-line: #dde3ec;
+    --color-line-strong: #8a96a8;
+    --color-canvas: #ffffff;
+    --color-paper: #ffffff;
+    --color-field: #ffffff;
+    --color-sunken: #eaeef4;
+    --color-track: #eef2f7;
+    --color-accent: #0f766e;
+    --color-accent-hover: #0d625c;
+    --color-accent-soft: #ccfbf1;
+    --color-on-accent: #ffffff;
+    --color-danger: #b42318;
+    --color-danger-soft: #fee4e2;
+    --color-warn: #b54708;
+    --color-warn-soft: #fef0c7;
+    --color-swatch-line: rgb(0 0 0 / 0.22);
+    --color-line-backing: rgb(0 0 0 / 0.35);
+    color-scheme: light;
   }
   html, body {
     background: #fff !important;

@@ -2,11 +2,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AppShell, EmptyState, PageTitle } from "@/components/app-shell";
 import { ColorStrip } from "@/components/fiber-chip";
+import { requireSession } from "@/lib/session";
 import { NewProjectDialog } from "./new-project-dialog";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  await requireSession("/");
   const projects = await prisma.project.findMany({
     orderBy: { updatedAt: "desc" },
     include: {

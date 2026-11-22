@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { logout } from "@/lib/actions/auth";
+import { ThemeToggle } from "./theme-toggle";
 
 export function AppShell({
   children,
@@ -12,10 +12,10 @@ export function AppShell({
 }) {
   return (
     <div className="min-h-dvh">
-      <header className="no-print sticky top-0 z-30 border-b border-[var(--color-line)] bg-white/85 backdrop-blur">
+      <header className="no-print sticky top-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-paper)]/85 backdrop-blur">
         <div className="mx-auto flex max-w-[1240px] items-center gap-4 px-4 py-2.5 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5 font-semibold tracking-tight">
-            <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-[var(--color-accent)] text-white">
+            <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-[var(--color-accent)] text-[var(--color-on-accent)]">
               <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 7h5l3 5-3 5H3" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M21 7h-5l-3 5 3 5h5" strokeLinecap="round" strokeLinejoin="round" />
@@ -26,7 +26,7 @@ export function AppShell({
 
           {breadcrumbs && breadcrumbs.length > 0 && (
             <nav className="hidden min-w-0 items-center gap-1.5 text-[13.5px] text-[var(--color-ink-500)] md:flex">
-              <span className="text-[var(--color-line)]">/</span>
+              <span aria-hidden="true" className="text-[var(--color-line)]">/</span>
               {breadcrumbs.map((c, i) => (
                 <span key={i} className="flex min-w-0 items-center gap-1.5">
                   {c.href ? (
@@ -36,7 +36,7 @@ export function AppShell({
                   ) : (
                     <span className="truncate font-medium text-[var(--color-ink-900)]">{c.label}</span>
                   )}
-                  {i < breadcrumbs.length - 1 && <span className="text-[var(--color-line)]">/</span>}
+                  {i < breadcrumbs.length - 1 && <span aria-hidden="true" className="text-[var(--color-line)]">/</span>}
                 </span>
               ))}
             </nav>
@@ -44,7 +44,8 @@ export function AppShell({
 
           <div className="ml-auto flex min-w-0 items-center gap-2">
             {actions}
-            <form action={logout}>
+            <ThemeToggle />
+            <form action="/api/auth/logout" method="post">
               <button type="submit" className="btn btn-ghost px-2.5 py-1.5 text-[13px]" title="Выйти">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M15 17l5-5-5-5M20 12H9M12 3H5v18h7" strokeLinecap="round" strokeLinejoin="round" />
@@ -55,11 +56,11 @@ export function AppShell({
         </div>
       </header>
       {breadcrumbs && breadcrumbs.length > 1 && (
-        <div className="no-print border-b border-[var(--color-line)] bg-white/60 md:hidden">
+        <div className="no-print border-b border-[var(--color-line)] bg-[var(--color-paper)]/70 md:hidden">
           <div className="mx-auto flex max-w-[1240px] items-center gap-1.5 overflow-x-auto px-4 py-1.5 text-[12.5px] text-[var(--color-ink-500)] sm:px-6">
             {breadcrumbs.map((c, i) => (
               <span key={i} className="flex shrink-0 items-center gap-1.5">
-                {i > 0 && <span className="text-[var(--color-line)]">/</span>}
+                {i > 0 && <span aria-hidden="true" className="text-[var(--color-line)]">/</span>}
                 {c.href && i < breadcrumbs.length - 1 ? (
                   <Link href={c.href} className="hover:text-[var(--color-ink-900)]">
                     {c.label}

@@ -5,11 +5,13 @@ import { AppShell, EmptyState, PageTitle } from "@/components/app-shell";
 import { STATUS_LABELS, STATUS_STYLES } from "@/lib/labels";
 import { NewClosureDialog } from "./new-closure-dialog";
 import { EditProjectButton } from "@/components/edit-dialogs";
+import { requireSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireSession(`/projects/${id}`);
   const project = await prisma.project.findUnique({
     where: { id },
     include: {

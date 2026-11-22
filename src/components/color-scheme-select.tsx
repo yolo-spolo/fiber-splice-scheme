@@ -62,7 +62,7 @@ export function ColorSchemeSelect({
   }
 
   return (
-    <div className="space-y-2.5 rounded-xl border border-[var(--color-line)] bg-white p-2.5">
+    <div className="space-y-2.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-2.5">
       <input type="hidden" name="colorScheme" value={scheme} />
       <input type="hidden" name="colorOrder" value={JSON.stringify(order)} />
       <input type="hidden" name="moduleColors" value={JSON.stringify(moduleColors)} />
@@ -89,7 +89,7 @@ export function ColorSchemeSelect({
                 className={`flex h-7 min-w-[30px] items-center justify-center rounded-md border px-1 text-[10.5px] font-bold tabular-nums transition ${
                   active
                     ? "border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/35"
-                    : "border-black/25 hover:scale-105"
+          : "border-[var(--color-swatch-line)] hover:scale-105"
                 }`}
                 style={swatchBackground(code)}
               >
@@ -133,7 +133,7 @@ export function ColorSchemeSelect({
                     onClick={() => setModuleColor(editingModule, code)}
                     title={color.name}
                     aria-label={color.name}
-                    className="h-5 rounded-[3px] border border-black/25 transition hover:scale-110"
+          className="h-5 rounded-[3px] border border-[var(--color-swatch-line)] transition hover:scale-110"
                     style={swatchBackground(code)}
                   />
                 );
@@ -161,7 +161,7 @@ export function ColorSchemeSelect({
                 className={`rounded-lg border px-2 py-1.5 text-left text-[12px] font-semibold transition ${
                   active
                     ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
-                    : "border-[var(--color-line)] bg-white hover:border-[var(--color-accent)]"
+        : "border-[var(--color-line)] bg-[var(--color-paper)] hover:border-[var(--color-accent)]"
                 }`}
               >
                 {item.label}
@@ -176,7 +176,7 @@ export function ColorSchemeSelect({
             return (
               <span
                 key={index}
-                className="flex h-5 w-5 items-center justify-center rounded-[3px] border border-black/25 text-[9px] font-bold"
+        className="flex h-5 w-5 items-center justify-center rounded-[3px] border border-[var(--color-swatch-line)] text-[9px] font-bold"
                 style={swatchBackground(code)}
                 title={`${index + 1} · ${color.name}`}
               >
@@ -215,7 +215,7 @@ export function ColorSchemeSelect({
                       ))}
                     </select>
                     <span
-                      className="h-5 w-5 shrink-0 rounded-[3px] border border-black/25"
+      className="h-5 w-5 shrink-0 rounded-[3px] border border-[var(--color-swatch-line)]"
                       style={swatchBackground(code)}
                     />
                   </div>

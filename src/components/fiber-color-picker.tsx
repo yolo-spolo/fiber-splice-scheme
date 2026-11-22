@@ -29,7 +29,7 @@ export function FiberColorPicker({
   }
 
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-white p-2.5">
+    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-paper)] p-2.5">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="text-[12px] font-semibold">{title ?? "Цвет жилы"}</span>
         {pending && <span className="text-[11px] text-[var(--color-ink-400)]">Сохраняю…</span>}
@@ -58,7 +58,7 @@ export function FiberColorPicker({
                   className={`relative h-7 rounded-md border transition ${
                     active
                       ? "border-[var(--color-accent)] ring-2 ring-[var(--color-accent)]/40"
-                      : "border-black/25 hover:scale-105"
+          : "border-[var(--color-swatch-line)] hover:scale-105"
                   }`}
                   style={{
                     background: color.hex,

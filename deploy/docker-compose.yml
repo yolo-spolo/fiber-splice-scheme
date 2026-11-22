@@ -24,7 +24,9 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://fiber:${DB_PASSWORD}@db:5432/fiber?schema=public
-      AUTH_PASSWORD: ${AUTH_PASSWORD:?set AUTH_PASSWORD}
+      # Пароль задаётся при первом запуске в браузере и хранится в БД.
+      # Переменная нужна только для совместимости с уже работающей установкой.
+      AUTH_PASSWORD: ${AUTH_PASSWORD:-}
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
       UPLOAD_DIR: /data/uploads
       APP_URL: ${APP_URL:?set APP_URL}
