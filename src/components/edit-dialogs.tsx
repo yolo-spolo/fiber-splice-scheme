@@ -5,6 +5,8 @@ import { updateProject } from "@/lib/actions/projects";
 import { updateClosure } from "@/lib/actions/closures";
 import { CLOSURE_KINDS } from "@/lib/cable-types";
 import { Field, Select, SubmitButton, Textarea } from "@/components/ui/fields";
+import { PostalAddressFields } from "@/components/postal-address-fields";
+import { closureTitle } from "@/lib/address";
 
 function Modal({
   title,
@@ -96,7 +98,6 @@ export function EditClosureButton({
     number: string;
     kind: string;
     model: string | null;
-    address: string | null;
     city: string | null;
     street: string | null;
     house: string | null;
@@ -107,43 +108,6 @@ export function EditClosureButton({
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [geoBusy, setGeoBusy] = useState(false);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [city, setCity] = useState(closure.city ?? "");
-  const [street, setStreet] = useState(closure.street ?? "");
-  const [house, setHouse] = useState(closure.house ?? "");
-  const [lat, setLat] = useState(closure.lat != null ? String(closure.lat) : "");
-  const [lng, setLng] = useState(closure.lng != null ? String(closure.lng) : "");
-
-  async function geocode() {
-    const query = [city && `г. ${city}`, street && `ул. ${street}`, house && `д. ${house}`]
-      .filter(Boolean)
-      .join(", ");
-    if (!query) {
-      setGeoError("Заполните город и улицу");
-      return;
-    }
-    setGeoBusy(true);
-    setGeoError(null);
-    try {
-      const res = await fetch("/api/geocode", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
-      if (!res.ok || typeof data.lat !== "number") {
-        setGeoError(data.error ?? "Не удалось определить координаты");
-      } else {
-        setLat(String(data.lat));
-        setLng(String(data.lon));
-      }
-    } catch {
-      setGeoError("Сеть недоступна");
-    } finally {
-      setGeoBusy(false);
-    }
-  }
 
   return (
     <>
@@ -158,7 +122,7 @@ export function EditClosureButton({
         Изменить
       </button>
       {open && (
-        <Modal title={`Муфта №${closure.number}`} onClose={() => setOpen(false)}>
+        <Modal title={closureTitle(closure)} onClose={() => setOpen(false)}>
           {error && (
             <p className="mb-3 rounded-lg bg-[var(--color-danger-soft)] px-3 py-2 text-[12.5px] text-[var(--color-danger)]">
               {error}
@@ -183,85 +147,14 @@ export function EditClosureButton({
               />
             </div>
             <Field label="Модель" name="model" defaultValue={closure.model} />
-            <Field label="Адрес установки" name="address" defaultValue={closure.address} />
 
-            <div className="rounded-xl border border-[var(--color-line)] p-2.5">
-              <div className="mb-2 text-[12.5px] font-semibold">Почтовый адрес</div>
-              <div className="grid gap-2.5 sm:grid-cols-[1fr_1fr_90px]">
-                <label className="block">
-                  <span className="label">Город</span>
-                  <input
-                    className="field"
-                    name="city"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="Москва"
-                  />
-                </label>
-                <label className="block">
-                  <span className="label">Улица</span>
-                  <input
-                    className="field"
-                    name="street"
-                    value={street}
-                    onChange={(e) => setStreet(e.target.value)}
-                    placeholder="Полярная"
-                  />
-                </label>
-                <label className="block">
-                  <span className="label">Дом</span>
-                  <input
-                    className="field"
-                    name="house"
-                    value={house}
-                    onChange={(e) => setHouse(e.target.value)}
-                    placeholder="12"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-2 grid gap-2.5 sm:grid-cols-2">
-                <label className="block">
-                  <span className="label">Широта</span>
-                  <input
-                    className="field"
-                    name="lat"
-                    inputMode="decimal"
-                    value={lat}
-                    onChange={(e) => setLat(e.target.value)}
-                    placeholder="55.7558"
-                  />
-                </label>
-                <label className="block">
-                  <span className="label">Долгота</span>
-                  <input
-                    className="field"
-                    name="lng"
-                    inputMode="decimal"
-                    value={lng}
-                    onChange={(e) => setLng(e.target.value)}
-                    placeholder="37.6173"
-                  />
-                </label>
-              </div>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="btn btn-ghost px-2.5 py-1 text-[12px]"
-                  disabled={geoBusy}
-                  onClick={geocode}
-                >
-                  {geoBusy ? "Ищу…" : "Определить по адресу"}
-                </button>
-                <span className="text-[11px] text-[var(--color-ink-400)]">
-                  Или вставьте координаты из карт
-                </span>
-              </div>
-              {geoError && (
-                <p className="mt-1.5 text-[11.5px] text-[var(--color-danger)]">{geoError}</p>
-              )}
-            </div>
+            <PostalAddressFields
+              defaultCity={closure.city ?? ""}
+              defaultStreet={closure.street ?? ""}
+              defaultHouse={closure.house ?? ""}
+              defaultLat={closure.lat != null ? String(closure.lat) : ""}
+              defaultLng={closure.lng != null ? String(closure.lng) : ""}
+            />
 
             <Textarea label="Заметки" name="notes" rows={2} defaultValue={closure.notes} />
             <div className="flex justify-end gap-2 pt-1">

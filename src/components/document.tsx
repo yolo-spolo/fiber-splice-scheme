@@ -1,13 +1,14 @@
 import {
   colorByCode,
   colorsForScheme,
-  FIBER_COLORS,
   moduleColorCodes,
   swatchBackground,
 } from "@/lib/colors";
 import { SPLICE_KIND_LABELS, STATUS_LABELS } from "@/lib/labels";
 import type { ClosureData } from "@/lib/closure-data";
 import { SpliceScheme } from "@/components/splice-scheme";
+import { ColorLegend } from "@/components/color-legend";
+import { closureKindLabel, formatPostalAddress } from "@/lib/address";
 
 export function SpliceDocument({
   closure,
@@ -16,6 +17,8 @@ export function SpliceDocument({
   generatedAt = new Date(),
   compact = false,
   fileBase = "/api/files",
+  legend = true,
+  signatures = true,
 }: {
   closure: ClosureData;
   qrDataUrl?: string;
@@ -23,6 +26,10 @@ export function SpliceDocument({
   generatedAt?: Date;
   compact?: boolean;
   fileBase?: string;
+  /** Легенда цветов под таблицей кабелей. В папке объекта печатается один раз на титуле. */
+  legend?: boolean;
+  /** Подписи сторон. В папке объекта — один раз в конце, у последней муфты. */
+  signatures?: boolean;
 }) {
   const fiberById = new Map(
     closure.cables.flatMap((cable) =>
@@ -48,6 +55,7 @@ export function SpliceDocument({
 
   const totalFibers = closure.cables.reduce((n, c) => n + c.fibers.length, 0);
   const photos = closure.photos.slice(0, compact ? 2 : 4);
+  const title = formatPostalAddress(closure) ?? `${closureKindLabel(closure.kind)} №${closure.number}`;
 
   // Документ всегда на бумаге: светлый остров, даже если интерфейс тёмный.
   return (
@@ -55,16 +63,29 @@ export function SpliceDocument({
       data-theme="light"
       className="document mx-auto w-full max-w-[820px] min-w-0 bg-[var(--color-paper)] text-[var(--color-ink-900)]"
     >
-      <header className="print-page mb-5 border-b-2 border-[var(--color-ink-900)] pb-4">
+      <header className="mb-5 border-b-2 border-[var(--color-ink-900)] pb-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[var(--color-ink-500)]">
               Схема оптических сварок
             </div>
             <h1 className="mt-1 text-[24px] leading-tight">
-              Муфта №{closure.number}
-              {closure.model ? ` · ${closure.model}` : ""}
+              {title}
             </h1>
+            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-[13px] text-[var(--color-ink-700)]">
+              {/* С адресом в заголовке номер нужен рядом; без адреса он уже в нём. */}
+              {formatPostalAddress(closure) && (
+                <span className="font-semibold tabular-nums">
+                  {closureKindLabel(closure.kind)} №{closure.number}
+                </span>
+              )}
+              {closure.model && (
+                <span>
+                  {formatPostalAddress(closure) ? "· " : ""}
+                  {closure.model}
+                </span>
+              )}
+            </div>
             <div className="mt-1.5 text-[13px] text-[var(--color-ink-700)]">
               {closure.project.name}
               {closure.project.address ? `, ${closure.project.address}` : ""}
@@ -86,7 +107,10 @@ export function SpliceDocument({
         <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px] sm:grid-cols-4">
           <Meta label="Заказчик" value={closure.project.customer ?? "—"} />
           <Meta label="Договор" value={closure.project.contract ?? "—"} />
-          <Meta label="Адрес установки" value={closure.address ?? closure.project.address ?? "—"} />
+          <Meta
+            label="Адрес"
+            value={formatPostalAddress(closure) ?? closure.project.address ?? "—"}
+          />
           <Meta label="Тип" value={closure.kind} />
           <Meta label="Статус" value={STATUS_LABELS[closure.status]} />
           <Meta label="Кабелей" value={`${closure.cables.length}`} />
@@ -101,7 +125,7 @@ export function SpliceDocument({
         )}
       </header>
 
-      <section className="print-page mb-5">
+      <section className="mb-5">
         <h2 className="mb-2 text-[14px] uppercase tracking-wide">Кабели</h2>
 
         {/* Телефон: карточки вместо широкой таблицы — ничего не обрезается */}
@@ -203,18 +227,59 @@ export function SpliceDocument({
           </tbody>
         </table>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--color-ink-500)]">
-          <span className="font-semibold">Порядок цветов:</span>
-          {FIBER_COLORS.map((c) => (
-            <span key={c.code} className="inline-flex items-center gap-1">
-              <span className="h-[9px] w-[9px] border border-black/20" style={{ background: c.hex }} />
-              {c.code + 1}. {c.name.toLowerCase()}
-            </span>
-          ))}
-        </div>
+        {legend && <ColorLegend className="mt-3" />}
       </section>
 
-      <section className="mb-5">
+      {/*
+        Фото идут сразу после кабелей, до схемы сварок: так лист муфты делится
+        на «что за муфта и её кабели с фото» и «сварки» — обе половины заполнены,
+        а фото не образуют отдельный полупустой лист в конце документа.
+      */}
+      {photos.length > 0 && (
+        <section className="mb-5">
+          <h2 className="mb-2 text-[14px] uppercase tracking-wide">Фото муфты</h2>
+          <div className={`doc-photos grid gap-3 ${photos.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {photos.map((photo) => (
+              <figure key={photo.id} className="doc-photo break-inside-avoid">
+                {/* Рамка по размеру снимка: метки на фото считаются в процентах
+                    от неё и не съезжают, когда фото уже колонки. */}
+                <div className="relative w-fit max-w-full">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`${fileBase}/${photo.file}`}
+                    alt={photo.caption ?? ""}
+                    className="doc-photo-img max-h-[78mm] w-full rounded border border-[var(--color-line)] object-cover"
+                  />
+                  {(photo.pins as { x: number; y: number; label: string }[]).map((pin, i) => (
+                    <span
+                      key={i}
+                      className="absolute grid h-5 w-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[var(--color-accent)] text-[10px] font-bold text-white ring-2 ring-white"
+                      style={{ left: `${pin.x * 100}%`, top: `${pin.y * 100}%` }}
+                    >
+                      {i + 1}
+                    </span>
+                  ))}
+                </div>
+                <figcaption className="mt-1 text-[10.5px] text-[var(--color-ink-500)]">
+                  {photo.caption ?? "Фото муфты"}
+                  {(photo.pins as { label: string }[]).length > 0 && (
+                    <>
+                      {" — "}
+                      {(photo.pins as { label: string }[]).map((p, i) => `${i + 1}. ${p.label}`).join(", ")}
+                    </>
+                  )}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Длинный блок сварок (24+) печатается с переносом между листами:
+          целиком он выше листа, а такие блоки WebKit выбрасывает. */}
+      <section
+        className={`doc-splices mb-5 ${closure.splices.length > 12 ? "doc-splices-long" : ""}`}
+      >
         <h2 className="mb-2 text-[14px] uppercase tracking-wide">Сварки</h2>
         {closure.splices.length === 0 ? (
           <p className="text-[12px] text-[var(--color-ink-500)]">Сварки не внесены.</p>
@@ -304,50 +369,16 @@ export function SpliceDocument({
         )}
       </section>
 
-      {photos.length > 0 && (
-        <section className="print-page mb-5">
-          <h2 className="mb-2 text-[14px] uppercase tracking-wide">Фото муфты</h2>
-          <div className={`grid gap-3 ${photos.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
-            {photos.map((photo) => (
-              <figure key={photo.id} className="break-inside-avoid">
-                <div className="relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`${fileBase}/${photo.file}`}
-                    alt={photo.caption ?? ""}
-                    className="max-h-[78mm] w-full rounded border border-[var(--color-line)] object-cover print:max-h-[70mm]"
-                  />
-                  {(photo.pins as { x: number; y: number; label: string }[]).map((pin, i) => (
-                    <span
-                      key={i}
-                      className="absolute grid h-5 w-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-[var(--color-accent)] text-[10px] font-bold text-white ring-2 ring-white"
-                      style={{ left: `${pin.x * 100}%`, top: `${pin.y * 100}%` }}
-                    >
-                      {i + 1}
-                    </span>
-                  ))}
-                </div>
-                <figcaption className="mt-1 text-[10.5px] text-[var(--color-ink-500)]">
-                  {photo.caption ?? "Фото муфты"}
-                  {(photo.pins as { label: string }[]).length > 0 && (
-                    <>
-                      {" — "}
-                      {(photo.pins as { label: string }[]).map((p, i) => `${i + 1}. ${p.label}`).join(", ")}
-                    </>
-                  )}
-                </figcaption>
-              </figure>
-            ))}
+      <footer className="doc-footer mt-6 break-inside-avoid border-t border-[var(--color-line)] pt-4">
+        {signatures && (
+          <div className="grid grid-cols-1 gap-6 text-[11.5px] sm:grid-cols-2 sm:gap-8">
+            <SignatureLine label="Исполнитель" />
+            <SignatureLine label="Представитель заказчика" />
           </div>
-        </section>
-      )}
-
-      <footer className="mt-6 break-inside-avoid border-t border-[var(--color-line)] pt-4">
-        <div className="grid grid-cols-1 gap-6 text-[11.5px] sm:grid-cols-2 sm:gap-8">
-          <SignatureLine label="Исполнитель" />
-          <SignatureLine label="Представитель заказчика" />
-        </div>
-        <div className="mt-4 flex items-end justify-between gap-4 text-[9.5px] text-[var(--color-ink-400)]">
+        )}
+        <div
+          className={`flex items-end justify-between gap-4 text-[9.5px] text-[var(--color-ink-400)] ${signatures ? "mt-4" : ""}`}
+        >
           <span>
             Документ сформирован {generatedAt.toLocaleString("ru-RU", { dateStyle: "long", timeStyle: "short" })}
           </span>

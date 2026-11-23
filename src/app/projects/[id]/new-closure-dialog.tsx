@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClosure } from "@/lib/actions/closures";
 import { CLOSURE_KINDS } from "@/lib/cable-types";
 import { Field, Select, SubmitButton, Textarea } from "@/components/ui/fields";
+import { PostalAddressFields } from "@/components/postal-address-fields";
 
 export function NewClosureDialog({
   projectId,
@@ -70,7 +71,7 @@ export function NewClosureDialog({
                 />
               </div>
               <Field label="Модель" name="model" placeholder="СТ-МТОК-96-2 (4/4)" />
-              <Field label="Адрес установки" name="address" placeholder="Колодец К-14" />
+              <PostalAddressFields />
               <Textarea label="Заметки" name="notes" rows={2} />
               <div className="flex justify-end gap-2 pt-1">
                 <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>

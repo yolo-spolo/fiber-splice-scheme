@@ -10,6 +10,8 @@ import { CountField, ModuleCountHint } from "@/components/count-field";
 import { CableTemplatePicker } from "@/components/cable-template-picker";
 import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
 import { cableLayout } from "@/lib/cable-layout";
+import { ClosurePicker } from "@/components/closure-picker";
+import type { ClosureOption } from "@/lib/cable-endpoints";
 
 type EditableCable = {
   id: string;
@@ -23,6 +25,8 @@ type EditableCable = {
   moduleColors: number[];
   fromLocation: string | null;
   toLocation: string | null;
+  fromClosureId: string | null;
+  toClosureId: string | null;
   ownership: string;
   sheathColor: string | null;
   notes: string | null;
@@ -32,10 +36,12 @@ export function EditCableDialog({
   cable,
   splicedCount,
   onClose,
+  closures = [],
 }: {
   cable: EditableCable;
   splicedCount: number;
   onClose: () => void;
+  closures?: ClosureOption[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [countText, setCountText] = useState(String(cable.fiberCount));
@@ -177,8 +183,22 @@ export function EditCableDialog({
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Откуда" name="fromLocation" defaultValue={cable.fromLocation} />
-            <Field label="Куда" name="toLocation" defaultValue={cable.toLocation} />
+            <ClosurePicker
+              label="Откуда"
+              name="fromLocation"
+              closureIdName="fromClosureId"
+              closures={closures}
+              defaultClosureId={cable.fromClosureId}
+              defaultValue={cable.fromLocation ?? ""}
+            />
+            <ClosurePicker
+              label="Куда"
+              name="toLocation"
+              closureIdName="toClosureId"
+              closures={closures}
+              defaultClosureId={cable.toClosureId}
+              defaultValue={cable.toLocation ?? ""}
+            />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

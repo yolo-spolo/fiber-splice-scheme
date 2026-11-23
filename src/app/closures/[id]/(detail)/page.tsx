@@ -33,11 +33,30 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
 
   const splicedIds = new Set(closure.splices.flatMap((s) => [s.fiberAId, s.fiberBId]));
 
+  // Справочник муфт объекта — для полей «Откуда/Куда» в диалогах кабеля.
+  const siblingClosures = await prisma.closure.findMany({
+    where: { projectId: closure.projectId },
+    orderBy: { number: "asc" },
+    select: {
+      id: true,
+      number: true,
+      kind: true,
+      city: true,
+      street: true,
+      house: true,
+      projectId: true,
+    },
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[16px]">Кабели в муфте</h2>
-        <NewCableDialog closureId={closure.id} cableTypes={cableTypes} />
+        <NewCableDialog
+          closureId={closure.id}
+          cableTypes={cableTypes}
+          closures={siblingClosures}
+        />
       </div>
 
       {closure.cables.length === 0 ? (
@@ -45,7 +64,12 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
           title="Кабелей пока нет"
           hint="Добавьте кабели — волокна сгенерируются автоматически по ёмкости, с цветами по TIA-598."
           action={
-            <NewCableDialog closureId={closure.id} trigger="Добавить кабель" cableTypes={cableTypes} />
+            <NewCableDialog
+              closureId={closure.id}
+              trigger="Добавить кабель"
+              cableTypes={cableTypes}
+              closures={siblingClosures}
+            />
           }
         />
       ) : (
@@ -56,6 +80,7 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
               cable={cable}
               splicedIds={[...splicedIds]}
               closureId={closure.id}
+              closures={siblingClosures}
             />
           ))}
         </div>

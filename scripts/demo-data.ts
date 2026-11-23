@@ -143,7 +143,6 @@ async function main() {
       kind: "МУФТА",
       model: "СТ-МТОК-96-2 (4/4)",
       status: "IN_PROGRESS",
-      address: "г. Москва, ул. Полярная, 12",
       city: "Москва",
       street: "Полярная",
       house: "12",

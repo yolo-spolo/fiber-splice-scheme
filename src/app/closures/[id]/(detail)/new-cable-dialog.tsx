@@ -10,11 +10,14 @@ import { CountField, ModuleCountHint } from "@/components/count-field";
 import { CableTemplatePicker } from "@/components/cable-template-picker";
 import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
 import { cableLayout } from "@/lib/cable-layout";
+import { ClosurePicker } from "@/components/closure-picker";
+import type { ClosureOption } from "@/lib/cable-endpoints";
 
 export function NewCableDialog({
   closureId,
   trigger = "Добавить кабель",
   cableTypes,
+  closures = [],
 }: {
   closureId: string;
   trigger?: string;
@@ -30,6 +33,7 @@ export function NewCableDialog({
     sheathColor: string | null;
     note: string | null;
   }[];
+  closures?: ClosureOption[];
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -242,8 +246,20 @@ export function NewCableDialog({
               />
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Откуда" name="fromLocation" placeholder="ОРШ-3" />
-                <Field label="Куда" name="toLocation" placeholder="Колодец К-14" />
+                <ClosurePicker
+                  label="Откуда"
+                  name="fromLocation"
+                  closureIdName="fromClosureId"
+                  closures={closures}
+                  placeholder="Муфта объекта или свой адрес"
+                />
+                <ClosurePicker
+                  label="Куда"
+                  name="toLocation"
+                  closureIdName="toClosureId"
+                  closures={closures}
+                  placeholder="Муфта объекта или свой адрес"
+                />
               </div>
 
               <div className="flex justify-end gap-2 pt-1">

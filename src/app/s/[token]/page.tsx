@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { loadClosure } from "@/lib/closure-data";
 import { SpliceDocument } from "@/components/document";
 import { PrintButton } from "@/components/print-button";
+import { closureKindLabel, closureTitle } from "@/lib/address";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
       ? await prisma.closure.findMany({
           where: { projectId: link.projectId },
           orderBy: { number: "asc" },
-          select: { id: true, number: true, kind: true },
+          select: { id: true, number: true, kind: true, city: true, street: true, house: true },
         })
       : [];
 
@@ -61,7 +62,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
         <ul className="space-y-2">
           {closures.map((c) => (
             <li key={c.id} className="card px-4 py-3 text-[14px]">
-              Муфта №{c.number} · {c.kind.toLowerCase()}
+              <div className="font-medium">{closureTitle(c)}</div>
+              <div className="mt-0.5 text-[12px] text-[var(--color-ink-400)]">
+                {closureKindLabel(c.kind)} <span className="tabular-nums">№{c.number}</span>
+              </div>
             </li>
           ))}
         </ul>

@@ -10,6 +10,7 @@ import {
   suggestModuleCount,
 } from "@/lib/cable-layout";
 import { isColorScheme } from "@/lib/colors";
+import { resolveCableEndpoint, type ClosureOption } from "@/lib/cable-endpoints";
 
 /** Массив цветов из формы: JSON-строка или повторяющиеся поля. */
 const colorOrderSchema = z
@@ -79,6 +80,8 @@ const cableSchema = z.object({
   moduleColors: moduleColorsSchema,
   fromLocation: z.string().trim().max(120).optional(),
   toLocation: z.string().trim().max(120).optional(),
+  fromClosureId: z.string().trim().optional(),
+  toClosureId: z.string().trim().optional(),
   ownership: z.enum(["OURS", "FOREIGN"]).optional(),
   sheathColor: z.string().trim().max(40).optional(),
 });
@@ -86,6 +89,55 @@ const cableSchema = z.object({
 function nullify(v?: string) {
   const t = v?.trim();
   return t ? t : null;
+}
+
+/**
+ * Муфты объекта для проверки концов кабеля. Возвращает и сам объект,
+ * чтобы отклонить ссылку на муфту чужого объекта.
+ */
+async function closureOptions(closureId: string) {
+  const closure = await prisma.closure.findUnique({
+    where: { id: closureId },
+    select: { projectId: true },
+  });
+  if (!closure) return null;
+  const options = await prisma.closure.findMany({
+    where: { projectId: closure.projectId },
+    select: {
+      id: true,
+      number: true,
+      kind: true,
+      city: true,
+      street: true,
+      house: true,
+      projectId: true,
+    },
+  });
+  return { projectId: closure.projectId, options: options as ClosureOption[] };
+}
+
+/** Оба конца кабеля одной функцией: одинаковые правила для создания и правки. */
+async function endpointsFor(
+  closureId: string,
+  d: { fromClosureId?: string; fromLocation?: string; toClosureId?: string; toLocation?: string },
+) {
+  const context = await closureOptions(closureId);
+  if (!context) return { error: "Муфта не найдена" as const };
+
+  const from = resolveCableEndpoint(
+    { closureId: d.fromClosureId, location: d.fromLocation },
+    context.options,
+    context.projectId,
+  );
+  if ("error" in from) return { error: from.error };
+  const to = resolveCableEndpoint(
+    { closureId: d.toClosureId, location: d.toLocation },
+    context.options,
+    context.projectId,
+  );
+  if ("error" in to) return { error: to.error };
+
+  return { from, to };
 }
 
 export async function createCable(formData: FormData) {
@@ -122,6 +174,9 @@ export async function createCable(formData: FormData) {
   });
   if (dup) return { error: `Кабель «${d.label}» уже добавлен` };
 
+  const ends = await endpointsFor(d.closureId, d);
+  if ("error" in ends) return { error: ends.error };
+
   const maxOrder = await prisma.cable.aggregate({
     where: { closureId: d.closureId },
     _max: { order: true },
@@ -140,8 +195,10 @@ export async function createCable(formData: FormData) {
       colorScheme: d.colorScheme,
       colorOrder: d.colorOrder,
       moduleColors: d.moduleColors,
-      fromLocation: nullify(d.fromLocation),
-      toLocation: nullify(d.toLocation),
+      fromLocation: ends.from.location,
+      fromClosureId: ends.from.closureId,
+      toLocation: ends.to.location,
+      toClosureId: ends.to.closureId,
       ownership: d.ownership ?? "OURS",
       sheathColor: nullify(d.sheathColor),
       order: (maxOrder._max.order ?? -1) + 1,
@@ -165,6 +222,8 @@ export async function updateCable(id: string, formData: FormData) {
       moduleColors: moduleColorsSchema,
       fromLocation: z.string().trim().max(120).optional(),
       toLocation: z.string().trim().max(120).optional(),
+      fromClosureId: z.string().trim().optional(),
+      toClosureId: z.string().trim().optional(),
       ownership: z.enum(["OURS", "FOREIGN"]).optional(),
       sheathColor: z.string().trim().max(40).optional(),
       notes: z.string().trim().max(1000).optional(),
@@ -192,6 +251,9 @@ export async function updateCable(id: string, formData: FormData) {
     select: { id: true },
   });
   if (duplicate) return { error: `Кабель «${d.label}» уже есть в этой муфте` };
+
+  const ends = await endpointsFor(cable.closureId, d);
+  if ("error" in ends) return { error: ends.error };
 
   const nextFiberCount = d.fiberCount ?? cable.fiberCount;
   const nextModuleCount = d.moduleCount ?? cable.moduleCount;
@@ -234,8 +296,10 @@ export async function updateCable(id: string, formData: FormData) {
         colorScheme: d.colorScheme ?? cable.colorScheme,
         colorOrder: d.colorOrder ?? cable.colorOrder,
         moduleColors: d.moduleColors ?? cable.moduleColors,
-        fromLocation: nullify(d.fromLocation),
-        toLocation: nullify(d.toLocation),
+        fromLocation: ends.from.location,
+        fromClosureId: ends.from.closureId,
+        toLocation: ends.to.location,
+        toClosureId: ends.to.closureId,
         ownership: d.ownership ?? "OURS",
         sheathColor: nullify(d.sheathColor),
         notes: nullify(d.notes),
@@ -321,8 +385,10 @@ export async function updateCable(id: string, formData: FormData) {
         colorScheme: d.colorScheme ?? cable.colorScheme,
         colorOrder: d.colorOrder ?? cable.colorOrder,
         moduleColors: d.moduleColors ?? cable.moduleColors,
-        fromLocation: nullify(d.fromLocation),
-        toLocation: nullify(d.toLocation),
+        fromLocation: ends.from.location,
+        fromClosureId: ends.from.closureId,
+        toLocation: ends.to.location,
+        toClosureId: ends.to.closureId,
         ownership: d.ownership ?? "OURS",
         sheathColor: nullify(d.sheathColor),
         notes: nullify(d.notes),

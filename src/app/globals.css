@@ -292,11 +292,188 @@
   .no-print {
     display: none !important;
   }
-  .print-page {
-    break-after: page;
+  /*
+   * Печать верстается по ширине A4, а не по ширине окна. На телефоне
+   * браузер иначе раскладывает документ в полосу ~103 мм и растягивает её
+   * на лист: блоки вырастают почти вдвое, секция сварок становится выше
+   * листа, и WebKit (Safari, iOS) выбрасывает её целиком — в предпросмотре
+   * лист есть, а сварок на нём нет.
+   */
+  .print-doc,
+  .document {
+    width: 188mm;
+    max-width: 188mm;
   }
-  .print-page:last-child {
-    break-after: auto;
+  /*
+   * Схема сварок: широкая компоновка рассчитана на бумагу, узкая — только
+   * для экрана телефона. Брейкпоинт sm: считается от окна, а не от листа,
+   * поэтому в печати раскладку выбираем явно.
+   */
+  .document .doc-scheme-wide {
+    display: block !important;
+  }
+  .document .doc-scheme-narrow {
+    display: none !important;
+  }
+  /* Плашки цветов и фото печатаются как на экране, а не белыми квадратами. */
+  .document,
+  .document * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /*
+   * Печать идёт потоком, а не «блок — отдельный лист»: шапка муфты, кабели
+   * и фото больше не начинают каждый новый лист. Разрыв остаётся только
+   * между муфтами.
+   */
+  /* Сводный документ объекта: разрыв только между муфтами. */
+  .print-doc + .print-doc {
+    break-before: page;
+    page-break-before: always;
+  }
+  /* Шапка муфты не отрывается от таблицы кабелей. */
+  .document > header {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  /* Заголовок не остаётся последней строкой листа. */
+  .document h1,
+  .document h2,
+  .document h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  /* Фото с подписью и подписи сторон не рвутся внутри. */
+  .document .doc-photo,
+  .document > footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .document figcaption {
+    break-before: avoid;
+  }
+  .document p {
+    orphans: 2;
+    widows: 2;
+  }
+  /*
+   * Печатная типографика: плотно, но читаемо. Кегли заданы здесь, а не
+   * утилитами в разметке, чтобы экран и бумага не тянули друг друга.
+   */
+  .document h1 {
+    font-size: 20px;
+    line-height: 1.2;
+  }
+  .document > header {
+    margin-bottom: 9px;
+    padding-bottom: 6px;
+  }
+  .document header dl {
+    margin-top: 7px;
+    gap: 2px 16px;
+    font-size: 10px;
+  }
+  .document header p {
+    margin-top: 6px;
+    font-size: 10px;
+  }
+  .document h2 {
+    font-size: 12.5px;
+    margin-bottom: 4px;
+  }
+  .document h3 {
+    font-size: 10.5px;
+    margin-bottom: 3px;
+  }
+  .document > section {
+    margin-bottom: 9px;
+  }
+  /*
+   * Блок «Сварки» держится целиком: схема соединений и таблица под ней
+   * читаются вместе. Исключение — муфта с 24 сварками (.doc-splices-long):
+   * там блок выше листа, а блок выше листа WebKit выбрасывает целиком,
+   * поэтому длинный блок делится по границам смысла.
+   */
+  .document .doc-splices {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .document .doc-splices-long,
+  .document .doc-splices-long figure {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  /* Внутри длинного блока пара кабелей и таблица кассеты остаются целыми. */
+  .document .doc-splices-long figure > div > div,
+  .document .doc-splices-long > div > div > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .document .doc-splices-long figure > figcaption {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .document table {
+    font-size: 11.5px;
+  }
+  /* Печать всегда использует компактные таблицы вместо экранных карточек. */
+  .document .print\:hidden {
+    display: none !important;
+  }
+  .document .print\:table {
+    display: table !important;
+  }
+  .document .print\:table-cell {
+    display: table-cell !important;
+  }
+  .document th,
+  .document td {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .document figcaption {
+    margin-top: 2px;
+    font-size: 9px;
+  }
+  /*
+   * Фото в ряд по 68 мм: блок перестаёт уезжать на отдельный лист.
+   * Высота фиксирована, ширина — по пропорциям снимка: object-cover обрезал
+   * бы кадр, а метки на фото стоят в процентах от рамки и съехали бы.
+   */
+  .document .doc-photo {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+  }
+  .document .doc-photo-img {
+    height: auto;
+    width: auto;
+    max-height: 68mm;
+    max-width: 100%;
+    object-fit: contain;
+  }
+  .document > footer {
+    margin-top: 9px;
+    padding-top: 6px;
+  }
+  .document > footer > div:first-child {
+    gap: 12px;
+  }
+  /* Два фото и подписи к ним не разделяются между страницами. */
+  .document .doc-photos {
+    break-inside: avoid;
+  }
+  .document .doc-photos > figure {
+    break-inside: avoid;
+  }
+  /* Титул крупнее муфт: это обложка папки, а не ещё одна страница данных. */
+  .document-cover h1 {
+    font-size: 24px;
+  }
+  .document-cover > header {
+    margin-bottom: 10px;
   }
   .card {
     border-color: #c9d1de;

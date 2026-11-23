@@ -49,6 +49,8 @@ model Closure {
   updatedAt DateTime      @updatedAt
 
   cables    Cable[]
+  cablesFrom Cable[] @relation("CableFrom")
+  cablesTo   Cable[] @relation("CableTo")
   cassettes Cassette[]
   splices   Splice[]
   photos    Photo[]
@@ -98,6 +100,10 @@ model Cable {
   moduleColors   Int[]          @default([])
   fromLocation   String?
   toLocation     String?
+  fromClosureId  String?
+  fromClosure    Closure?       @relation("CableFrom", fields: [fromClosureId], references: [id], onDelete: SetNull)
+  toClosureId    String?
+  toClosure      Closure?       @relation("CableTo", fields: [toClosureId], references: [id], onDelete: SetNull)
   ownership      CableOwnership @default(OURS)
   sheathColor    String?
   order          Int            @default(0)
@@ -108,6 +114,8 @@ model Cable {
 
   @@unique([closureId, label])
   @@index([closureId])
+  @@index([fromClosureId])
+  @@index([toClosureId])
 }
 
 enum FiberStatus {

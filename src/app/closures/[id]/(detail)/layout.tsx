@@ -7,7 +7,7 @@ import { ClosureTabs } from "./closure-tabs";
 import { StatusControl } from "./status-control";
 import { EditClosureButton } from "@/components/edit-dialogs";
 import { LocationMap } from "@/components/location-map";
-import { formatPostalAddress } from "@/lib/address";
+import { closureTitle, formatPostalAddress } from "@/lib/address";
 import { requireSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function ClosureLayout({
       breadcrumbs={[
         { label: "Объекты", href: "/" },
         { label: closure.project.name, href: `/projects/${closure.projectId}` },
-        { label: `Муфта №${closure.number}` },
+        { label: closureTitle(closure) },
       ]}
       actions={
         <Link href={`/closures/${id}/print`} className="btn btn-ghost px-2.5 py-1.5 text-[13px]">
@@ -44,9 +44,10 @@ export default async function ClosureLayout({
     >
       <div className="mb-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <h1 className="min-w-0 text-[22px] leading-tight sm:text-[24px]">
-            Муфта №{closure.number}
+          <h1 className="min-w-0 break-words text-[22px] leading-tight sm:text-[24px]">
+            {closureTitle(closure)}
           </h1>
+          <span className="chip shrink-0 tabular-nums">№{closure.number}</span>
           <span className="chip uppercase">{closure.kind}</span>
           <span className={`chip ${STATUS_STYLES[closure.status]}`}>{STATUS_LABELS[closure.status]}</span>
           <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto">
@@ -55,40 +56,25 @@ export default async function ClosureLayout({
           </div>
         </div>
         <p className="mt-1 break-words text-[13px] text-[var(--color-ink-500)]">
-          {[closure.model, closure.address].filter(Boolean).join(" · ") || "Модель и адрес не указаны"}
+          {closure.model ?? "Модель не указана"}
         </p>
       </div>
 
-      {(closure.lat != null || closure.city) && (
-        <div className="mb-4 space-y-2">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-0.5 text-[12.5px]">
-            <span className="text-[10.5px] uppercase tracking-wide text-[var(--color-ink-400)]">
-              Адрес
-            </span>
-            <span className="min-w-0 break-words font-medium">
-              {formatPostalAddress(closure) ?? "не указан"}
-            </span>
-            {closure.address && (
-              <span className="min-w-0 break-words text-[var(--color-ink-500)]">
-                · ориентир: {closure.address}
-              </span>
-            )}
-            {closure.lat == null && (
-              <span className="text-[11.5px] text-[var(--color-ink-400)]">
-                · координаты не заданы, карта появится после заполнения
-              </span>
-            )}
-          </div>
-          {closure.lat != null && closure.lng != null && (
-            <LocationMap
-              lat={closure.lat}
-              lng={closure.lng}
-              label={`Муфта №${closure.number}`}
-              address={formatPostalAddress(closure)}
-            />
-          )}
-        </div>
-      )}
+      {/* Адрес теперь и есть заголовок: отдельной строкой он только дублировал бы себя. */}
+      <div className="mb-4">
+        {closure.lat != null && closure.lng != null ? (
+          <LocationMap
+            lat={closure.lat}
+            lng={closure.lng}
+            label={closureTitle(closure)}
+            address={formatPostalAddress(closure)}
+          />
+        ) : (
+          <p className="text-[11.5px] text-[var(--color-ink-400)]">
+            Координаты не заданы — карта появится после заполнения адреса.
+          </p>
+        )}
+      </div>
 
       <div className="mb-5 grid grid-cols-2 gap-2 min-[420px]:grid-cols-3 sm:grid-cols-5">
         <StatTile label="Волокон" value={stats.total} />

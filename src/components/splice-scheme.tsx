@@ -146,7 +146,7 @@ export function SpliceScheme({
                     cableB={cableB}
                     fiberById={fiberById}
                     metrics={WIDE}
-                    className="hidden sm:block"
+                    className="doc-scheme-wide hidden sm:block"
                   />
                   <PairScheme
                     pair={pair}
@@ -154,7 +154,7 @@ export function SpliceScheme({
                     cableB={cableB}
                     fiberById={fiberById}
                     metrics={NARROW}
-                    className="block sm:hidden"
+                    className="doc-scheme-narrow block sm:hidden"
                     compact
                   />
                 </div>

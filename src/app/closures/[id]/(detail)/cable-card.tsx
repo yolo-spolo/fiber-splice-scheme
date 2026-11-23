@@ -8,15 +8,33 @@ import { cableLayout } from "@/lib/cable-layout";
 import type { CableWithFibers } from "@/lib/closure-data";
 import { FIBER_STATUS_LABELS } from "@/lib/labels";
 import { EditCableDialog } from "./edit-cable-dialog";
+import type { ClosureOption } from "@/lib/cable-endpoints";
+import Link from "next/link";
+
+/** Конец кабеля: муфта объекта становится ссылкой, свободный адрес — текстом. */
+function Endpoint({ location, closureId }: { location: string | null; closureId: string | null }) {
+  if (!location) return <span className="text-[var(--color-ink-400)]">?</span>;
+  if (!closureId) return <span>{location}</span>;
+  return (
+    <Link
+      href={`/closures/${closureId}`}
+      className="font-medium text-[var(--color-accent)] hover:underline"
+    >
+      {location}
+    </Link>
+  );
+}
 
 export function CableCard({
   cable,
   splicedIds,
   closureId,
+  closures = [],
 }: {
   cable: CableWithFibers;
   splicedIds: string[];
   closureId: string;
+  closures?: ClosureOption[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [pending, start] = useTransition();
@@ -56,7 +74,9 @@ export function CableCard({
             </span>
             {(cable.fromLocation || cable.toLocation) && (
               <span className="min-w-0 break-words">
-                {cable.fromLocation ?? "?"} → {cable.toLocation ?? "?"}
+                <Endpoint location={cable.fromLocation} closureId={cable.fromClosureId} />
+                {" → "}
+                <Endpoint location={cable.toLocation} closureId={cable.toClosureId} />
               </span>
             )}
           </div>
@@ -250,12 +270,15 @@ export function CableCard({
             moduleColors: cable.moduleColors,
             fromLocation: cable.fromLocation,
             toLocation: cable.toLocation,
+            fromClosureId: cable.fromClosureId,
+            toClosureId: cable.toClosureId,
             ownership: cable.ownership,
             sheathColor: cable.sheathColor,
             notes: cable.notes,
           }}
           splicedCount={doneCount}
           onClose={() => setEditing(false)}
+          closures={closures}
         />
       )}
     </div>

@@ -60,7 +60,11 @@ async function main() {
       number: "12",
       kind: "МУФТА",
       model: "СТ-МТОК-96-2 (4/4)",
-      address: "Колодец К-14, подъезд 2",
+      city: "Москва",
+      street: "Полярная",
+      house: "12",
+      lat: 55.8637,
+      lng: 37.5312,
       status: "IN_PROGRESS",
       cassettes: {
         create: [
