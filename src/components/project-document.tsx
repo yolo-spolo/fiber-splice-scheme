@@ -1,4 +1,9 @@
-import { closureKindLabel, closureTitle, formatPostalAddress } from "@/lib/address";
+import {
+  closureKindLabel,
+  closureTitle,
+  formatLatLng,
+  formatPostalAddress,
+} from "@/lib/address";
 import { STATUS_LABELS } from "@/lib/labels";
 import { ColorLegend } from "@/components/color-legend";
 import type { ClosureData } from "@/lib/closure-data";
@@ -80,6 +85,7 @@ export function ProjectCover({
             <tbody>
               {closures.map((closure, index) => {
                 const fibers = closure.cables.reduce((n, cable) => n + cable.fibers.length, 0);
+                const coordinates = formatLatLng(closure.lat, closure.lng);
                 return (
                   <tr key={closure.id} className="border-b border-[var(--color-track)]">
                     <Td className="tabular-nums text-[var(--color-ink-400)]">{index + 1}</Td>
@@ -92,6 +98,13 @@ export function ProjectCover({
                         </span>
                       ) : (
                         <div className="text-[10px] text-[var(--color-ink-400)]">адрес не указан</div>
+                      )}
+                      {/* Координаты — под названием: по ним находят муфту, когда
+                          адрес описан приблизительно. */}
+                      {coordinates && (
+                        <div className="font-mono text-[9.5px] tabular-nums text-[var(--color-ink-400)]">
+                          {coordinates}
+                        </div>
                       )}
                     </Td>
                     <Td>{closure.kind}</Td>

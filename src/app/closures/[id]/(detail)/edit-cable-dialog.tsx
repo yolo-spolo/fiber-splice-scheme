@@ -12,6 +12,7 @@ import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
 import { cableLayout } from "@/lib/cable-layout";
 import { ClosurePicker } from "@/components/closure-picker";
 import type { ClosureOption } from "@/lib/cable-endpoints";
+import { useShareToken } from "@/components/edit-scope";
 
 type EditableCable = {
   id: string;
@@ -44,6 +45,7 @@ export function EditCableDialog({
   closures?: ClosureOption[];
 }) {
   const [error, setError] = useState<string | null>(null);
+  const shareToken = useShareToken();
   const [countText, setCountText] = useState(String(cable.fiberCount));
   const [modulesText, setModulesText] = useState(String(cable.moduleCount));
   const [ownership, setOwnership] = useState(cable.ownership);
@@ -107,7 +109,7 @@ export function EditCableDialog({
 
         <form
           action={async (formData) => {
-            const res = await updateCable(cable.id, formData);
+            const res = await updateCable(cable.id, formData, shareToken);
             if (res?.error) setError(res.error);
             else onClose();
           }}

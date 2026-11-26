@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatLatLng } from "@/lib/address";
 
 /**
  * Окно с картой и отметкой места. OpenStreetMap — без ключей API и оплаты.
@@ -88,7 +89,7 @@ export function LocationMap({
           {address || label || "Координаты муфты"}
         </span>
         <span className="shrink-0 font-mono tabular-nums text-[var(--color-ink-400)]">
-          {lat.toFixed(5)}, {lng.toFixed(5)}
+          {formatLatLng(lat, lng)}
         </span>
         <a
           href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=19/${lat}/${lng}`}

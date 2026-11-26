@@ -6,6 +6,7 @@ import { SpliceDocument } from "@/components/document";
 import { PrintButton } from "@/components/print-button";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { closureHistory } from "@/lib/history";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
   const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
   const shareUrl = active ? `${baseUrl}/s/${active.token}` : undefined;
   const qrDataUrl = shareUrl ? await QRCode.toDataURL(shareUrl, { margin: 0, width: 220 }) : undefined;
+  const history = await closureHistory(closure.id, 5);
 
   // Предпросмотр печати не темнеет: лист документа всегда белый.
   return (
@@ -42,7 +44,18 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
       </div>
       <div className="mx-auto max-w-[900px] px-4 py-6 print:max-w-none print:p-0">
         <div className="print:block rounded-xl bg-[var(--color-paper)] p-6 shadow-sm sm:p-10 print:rounded-none print:p-0 print:shadow-none">
-          <SpliceDocument closure={closure} qrDataUrl={qrDataUrl} shareUrl={shareUrl} />
+          <SpliceDocument
+            closure={closure}
+            qrDataUrl={qrDataUrl}
+            shareUrl={shareUrl}
+            history={history.map((event) => ({
+              id: event.id,
+              actorKind: event.actorKind,
+              actorName: event.actorName,
+              summary: event.summary,
+              createdAt: event.createdAt.toISOString(),
+            }))}
+          />
         </div>
       </div>
     </div>

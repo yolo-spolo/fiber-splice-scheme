@@ -7,6 +7,7 @@ import { CLOSURE_KINDS } from "@/lib/cable-types";
 import { Field, Select, SubmitButton, Textarea } from "@/components/ui/fields";
 import { PostalAddressFields } from "@/components/postal-address-fields";
 import { closureTitle } from "@/lib/address";
+import { useShareToken } from "@/components/edit-scope";
 
 function Modal({
   title,
@@ -108,6 +109,7 @@ export function EditClosureButton({
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const shareToken = useShareToken();
 
   return (
     <>
@@ -130,6 +132,7 @@ export function EditClosureButton({
           )}
           <form
             action={async (formData) => {
+              if (shareToken) formData.set("shareToken", shareToken);
               const res = await updateClosure(closure.id, formData);
               if (res?.error) setError(res.error);
               else setOpen(false);

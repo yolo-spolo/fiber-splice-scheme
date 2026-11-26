@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { deletePhoto, savePhotoPins, uploadPhoto, type Pin } from "@/lib/actions/photos";
+import { useShareToken } from "@/components/edit-scope";
 
 type PhotoItem = {
   id: string;
@@ -29,6 +30,7 @@ export function PhotoManager({
   const [draftPins, setDraftPins] = useState<Pin[]>([]);
   const [pinTarget, setPinTarget] = useState(cassettes[0]?.id ?? "");
   const [caption, setCaption] = useState("");
+  const shareToken = useShareToken();
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function onFiles(files: FileList | null) {
@@ -39,6 +41,7 @@ export function PhotoManager({
       const formData = new FormData();
       formData.set("closureId", closureId);
       formData.set("file", file);
+      if (shareToken) formData.set("shareToken", shareToken);
       const res = await uploadPhoto(formData);
       if (res?.error) {
         setError(res.error);
@@ -213,7 +216,11 @@ export function PhotoManager({
                   disabled={pending}
                   onClick={() =>
                     start(async () => {
-                      await savePhotoPins(active.id, draftPins, caption);
+                      const res = await savePhotoPins(active.id, draftPins, caption, shareToken);
+                      if (res?.error) {
+                        setError(res.error);
+                        return;
+                      }
                       setActive(null);
                     })
                   }
@@ -227,7 +234,11 @@ export function PhotoManager({
                   onClick={() => {
                     if (!confirm("Удалить фото?")) return;
                     start(async () => {
-                      await deletePhoto(active.id);
+                      const res = await deletePhoto(active.id, shareToken);
+                      if (res?.error) {
+                        setError(res.error);
+                        return;
+                      }
                       setActive(null);
                     });
                   }}

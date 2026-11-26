@@ -1,11 +1,15 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import { resolveShareToken } from "@/lib/share";
+import { shareCanEdit } from "@/lib/share-access";
 import { prisma } from "@/lib/prisma";
 import { loadClosure } from "@/lib/closure-data";
 import { SpliceDocument } from "@/components/document";
 import { PrintButton } from "@/components/print-button";
 import { closureKindLabel, closureTitle } from "@/lib/address";
+import { ShareUnavailable } from "./share-unavailable";
 
 export const dynamic = "force-dynamic";
 
@@ -18,22 +22,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   const resolved = await resolveShareToken(token);
 
   if (resolved.status !== "ok") {
-    return (
-      <div className="grid min-h-dvh place-items-center px-4">
-        <div className="card max-w-[420px] p-6 text-center">
-          <h1 className="text-[19px]">
-            {resolved.status === "notfound"
-              ? "Ссылка не найдена"
-              : resolved.status === "revoked"
-                ? "Ссылка отозвана"
-                : "Срок ссылки истёк"}
-          </h1>
-          <p className="mt-2 text-[13px] text-[var(--color-ink-500)]">
-            Попросите исполнителя прислать новую ссылку на схему.
-          </p>
-        </div>
-      </div>
-    );
+    return <ShareUnavailable status={resolved.status} />;
   }
 
   const { link } = resolved;
@@ -44,31 +33,62 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   });
 
   const closureId = link.closureId;
+  // Ссылка на муфту с правом правки ведёт сразу в редактор: иначе гость
+  // видел бы документ и не понял, что ему разрешено менять муфту.
+  if (closureId && shareCanEdit(link)) {
+    redirect(`/s/${token}/closure/${closureId}`);
+  }
   if (!closureId) {
     const closures = link.projectId
       ? await prisma.closure.findMany({
           where: { projectId: link.projectId },
           orderBy: { number: "asc" },
-          select: { id: true, number: true, kind: true, city: true, street: true, house: true },
+          select: {
+            id: true,
+            number: true,
+            kind: true,
+            city: true,
+            street: true,
+            house: true,
+            status: true,
+            _count: { select: { cables: true, splices: true, photos: true } },
+          },
         })
       : [];
 
     return (
-      <div className="mx-auto max-w-[820px] px-4 py-8">
-        <h1 className="text-[22px]">{link.project?.name ?? "Объект"}</h1>
-        <p className="mt-1 mb-4 text-[13px] text-[var(--color-ink-500)]">
-          {[link.project?.customer, link.project?.address].filter(Boolean).join(" · ")}
-        </p>
-        <ul className="space-y-2">
-          {closures.map((c) => (
-            <li key={c.id} className="card px-4 py-3 text-[14px]">
-              <div className="font-medium">{closureTitle(c)}</div>
-              <div className="mt-0.5 text-[12px] text-[var(--color-ink-400)]">
-                {closureKindLabel(c.kind)} <span className="tabular-nums">№{c.number}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+      <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+        <div className="mx-auto max-w-[820px] px-4 py-8">
+          <h1 className="text-[22px] leading-tight">{link.project?.name ?? "Объект"}</h1>
+          <p className="mt-1 text-[13px] text-[var(--color-ink-500)]">
+            {[link.project?.customer, link.project?.address].filter(Boolean).join(" · ")}
+          </p>
+          <p className="mt-0.5 mb-4 text-[11.5px] text-[var(--color-ink-400)]">
+            {closures.length} муфт · {link.mode === "EDIT" ? "с правом правки" : "только просмотр"}
+          </p>
+          <ul className="space-y-2">
+            {closures.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/s/${token}/closure/${c.id}`}
+                  className="card flex items-center gap-3 px-4 py-3 text-[14px] transition hover:border-[var(--color-accent)]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{closureTitle(c)}</div>
+                    <div className="mt-0.5 text-[12px] text-[var(--color-ink-400)]">
+                      {closureKindLabel(c.kind)} <span className="tabular-nums">№{c.number}</span> ·{" "}
+                      {c._count.cables} каб. · {c._count.splices} сварок
+                      {c._count.photos > 0 ? ` · ${c._count.photos} фото` : ""}
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-[var(--color-ink-400)]" aria-hidden>
+                    →
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     );
   }
@@ -84,7 +104,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold">{closure.project.name}</div>
             <div className="text-[11.5px] text-[var(--color-ink-400)]">
-              Схема сварок · только просмотр
+              Схема сварок · {link.mode === "EDIT" ? "с правом правки" : "только просмотр"}
             </div>
           </div>
           <div className="ml-auto">

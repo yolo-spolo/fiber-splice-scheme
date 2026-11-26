@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createCassette, deleteCassette } from "@/lib/actions/cassettes";
+import { useShareToken } from "@/components/edit-scope";
 
 export function CassettePanel({
   closureId,
@@ -13,6 +14,7 @@ export function CassettePanel({
   splices: { id: string; cassetteId: string | null }[];
 }) {
   const [pending, start] = useTransition();
+  const shareToken = useShareToken();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +47,7 @@ export function CassettePanel({
         <form
           className="mb-3 flex flex-wrap items-end gap-2 rounded-lg bg-[var(--color-canvas)] p-2.5"
           action={async (formData) => {
+            if (shareToken) formData.set("shareToken", shareToken);
             const res = await createCassette(formData);
             if (res?.error) setError(res.error);
             else {
@@ -100,7 +103,8 @@ export function CassettePanel({
                   onClick={() => {
                     if (!confirm(`Удалить кассету ${c.number}?`)) return;
                     start(async () => {
-                      await deleteCassette(c.id);
+                      const res = await deleteCassette(c.id, shareToken);
+                      if (res?.error) setError(res.error);
                     });
                   }}
                 >

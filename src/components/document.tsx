@@ -8,7 +8,16 @@ import { SPLICE_KIND_LABELS, STATUS_LABELS } from "@/lib/labels";
 import type { ClosureData } from "@/lib/closure-data";
 import { SpliceScheme } from "@/components/splice-scheme";
 import { ColorLegend } from "@/components/color-legend";
-import { closureKindLabel, formatPostalAddress } from "@/lib/address";
+import { closureKindLabel, formatLatLng, formatPostalAddress } from "@/lib/address";
+import { actorLabel } from "@/lib/history-labels";
+
+export type DocumentHistoryItem = {
+  id: string;
+  actorKind: string;
+  actorName: string;
+  summary: string;
+  createdAt: string;
+};
 
 export function SpliceDocument({
   closure,
@@ -19,6 +28,7 @@ export function SpliceDocument({
   fileBase = "/api/files",
   legend = true,
   signatures = true,
+  history = [],
 }: {
   closure: ClosureData;
   qrDataUrl?: string;
@@ -30,6 +40,8 @@ export function SpliceDocument({
   legend?: boolean;
   /** Подписи сторон. В папке объекта — один раз в конце, у последней муфты. */
   signatures?: boolean;
+  /** Последние изменения: кто и что поправил, включая правки по ссылке. */
+  history?: DocumentHistoryItem[];
 }) {
   const fiberById = new Map(
     closure.cables.flatMap((cable) =>
@@ -40,6 +52,7 @@ export function SpliceDocument({
           moduleIndex: f.moduleIndex,
           position: f.position,
           colorCode: f.colorCode,
+          label: f.label,
         },
       ]),
     ),
@@ -56,6 +69,9 @@ export function SpliceDocument({
   const totalFibers = closure.cables.reduce((n, c) => n + c.fibers.length, 0);
   const photos = closure.photos.slice(0, compact ? 2 : 4);
   const title = formatPostalAddress(closure) ?? `${closureKindLabel(closure.kind)} №${closure.number}`;
+  // Координаты в документе нужны монтажнику: по ним муфту находят в поле,
+  // даже когда адрес записан неточно.
+  const coordinates = formatLatLng(closure.lat, closure.lng);
 
   // Документ всегда на бумаге: светлый остров, даже если интерфейс тёмный.
   return (
@@ -104,13 +120,14 @@ export function SpliceDocument({
           )}
         </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px] sm:grid-cols-4">
+        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px] sm:grid-cols-3">
           <Meta label="Заказчик" value={closure.project.customer ?? "—"} />
           <Meta label="Договор" value={closure.project.contract ?? "—"} />
           <Meta
             label="Адрес"
             value={formatPostalAddress(closure) ?? closure.project.address ?? "—"}
           />
+          <Meta label="Координаты" value={coordinates ?? "—"} mono />
           <Meta label="Тип" value={closure.kind} />
           <Meta label="Статус" value={STATUS_LABELS[closure.status]} />
           <Meta label="Кабелей" value={`${closure.cables.length}`} />
@@ -370,6 +387,27 @@ export function SpliceDocument({
       </section>
 
       <footer className="doc-footer mt-6 break-inside-avoid border-t border-[var(--color-line)] pt-4">
+        {history.length > 0 && (
+          <div className="mb-4">
+            <h2 className="mb-1 text-[11px] uppercase tracking-wide text-[var(--color-ink-400)]">
+              Последние изменения
+            </h2>
+            <ul className="space-y-0.5 text-[10.5px] text-[var(--color-ink-700)]">
+              {history.slice(0, 5).map((event) => (
+                <li key={event.id} className="flex flex-wrap gap-x-1.5">
+                  <span className="shrink-0 tabular-nums text-[var(--color-ink-400)]">
+                    {new Date(event.createdAt).toLocaleString("ru-RU", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </span>
+                  <span className="shrink-0 font-medium">{actorLabel(event)}</span>
+                  <span className="min-w-0 break-words">{event.summary}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {signatures && (
           <div className="grid grid-cols-1 gap-6 text-[11.5px] sm:grid-cols-2 sm:gap-8">
             <SignatureLine label="Исполнитель" />
@@ -389,11 +427,13 @@ export function SpliceDocument({
   );
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
+function Meta({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="min-w-0">
       <dt className="text-[9.5px] uppercase tracking-wide text-[var(--color-ink-400)]">{label}</dt>
-      <dd className="break-words font-medium leading-snug">{value}</dd>
+      <dd className={`break-words font-medium leading-snug ${mono ? "font-mono tabular-nums" : ""}`}>
+        {value}
+      </dd>
     </div>
   );
 }
@@ -410,23 +450,37 @@ function FiberCell({
   fiber,
   short = false,
 }: {
-  fiber?: { cableLabel: string; moduleIndex: number; position: number; colorCode: number };
+  fiber?: {
+    cableLabel: string;
+    moduleIndex: number;
+    position: number;
+    colorCode: number;
+    label?: string | null;
+  };
   short?: boolean;
 }) {
   if (!fiber) return <span>—</span>;
   const color = colorByCode(fiber.colorCode);
   return (
-    <span className="inline-flex min-w-0 items-center gap-1">
-      <span className="h-[10px] w-[10px] shrink-0 border border-black/25" style={{ background: color.hex }} />
-      <span className="shrink-0 font-semibold">{fiber.cableLabel}</span>
-      <span className="shrink-0 tabular-nums text-[var(--color-ink-500)]">
-        {fiber.moduleIndex}:{fiber.position}
+    <span className="inline-flex min-w-0 flex-col">
+      <span className="inline-flex min-w-0 items-center gap-1">
+        <span className="h-[10px] w-[10px] shrink-0 border border-black/25" style={{ background: color.hex }} />
+        <span className="shrink-0 font-semibold">{fiber.cableLabel}</span>
+        <span className="shrink-0 tabular-nums text-[var(--color-ink-500)]">
+          {fiber.moduleIndex}:{fiber.position}
+        </span>
+        <span
+          className={`truncate text-[10px] text-[var(--color-ink-400)] ${short ? "hidden sm:inline print:inline" : ""}`}
+        >
+          {color.name.toLowerCase()}
+        </span>
       </span>
-      <span
-        className={`truncate text-[10px] text-[var(--color-ink-400)] ${short ? "hidden sm:inline print:inline" : ""}`}
-      >
-        {color.name.toLowerCase()}
-      </span>
+      {/* Подпись печатается под волокном: по ней находят абонента или объект. */}
+      {fiber.label && (
+        <span className="break-words text-[10px] leading-tight text-[var(--color-ink-700)]">
+          {fiber.label}
+        </span>
+      )}
     </span>
   );
 }

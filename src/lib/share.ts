@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+export { shareAllowsClosure, shareCanEdit, shareProjectId } from "@/lib/share-access";
+
 export async function resolveShareToken(token: string) {
   const link = await prisma.shareLink.findUnique({
     where: { token },
@@ -13,3 +15,5 @@ export async function resolveShareToken(token: string) {
   if (link.expiresAt && link.expiresAt < new Date()) return { status: "expired" as const };
   return { status: "ok" as const, link };
 }
+
+export type ResolvedShare = Extract<Awaited<ReturnType<typeof resolveShareToken>>, { status: "ok" }>["link"];

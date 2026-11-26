@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { colorByCode, FIBER_COLORS, FIBER_COLORS_STRIPED } from "@/lib/colors";
-import { setFiberColor } from "@/lib/actions/splices";
+import { setFiberColor, setFiberLabel } from "@/lib/actions/splices";
+import { useShareToken } from "@/components/edit-scope";
 
 /**
  * Быстрая смена цвета жилы: 12 базовых цветов и 12 «с полосой».
@@ -11,19 +12,25 @@ import { setFiberColor } from "@/lib/actions/splices";
 export function FiberColorPicker({
   fiberId,
   currentCode,
+  currentLabel,
   title,
   onDone,
 }: {
   fiberId: string;
   currentCode: number;
+  currentLabel?: string | null;
   title?: string;
   onDone?: () => void;
 }) {
   const [pending, start] = useTransition();
+  const shareToken = useShareToken();
+  const [label, setLabel] = useState(currentLabel ?? "");
+  const [labelError, setLabelError] = useState<string | null>(null);
 
   function apply(code: number) {
     start(async () => {
-      await setFiberColor(fiberId, code);
+      const res = await setFiberColor(fiberId, code, shareToken);
+      if (res?.error) alert(res.error);
       onDone?.();
     });
   }
@@ -33,6 +40,50 @@ export function FiberColorPicker({
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <span className="text-[12px] font-semibold">{title ?? "Цвет жилы"}</span>
         {pending && <span className="text-[11px] text-[var(--color-ink-400)]">Сохраняю…</span>}
+      </div>
+
+      {/* Подпись — «для какого абонента или объекта». Печатается в документе
+          рядом с номером волокна. */}
+      <div className="mb-2 rounded-lg bg-[var(--color-canvas)] p-2">
+        <label className="block">
+          <span className="label">Подпись волокна</span>
+          <input
+            className="field !py-1.5 text-[12.5px]"
+            value={label}
+            maxLength={120}
+            placeholder="Абонент: кв. 42, Петров"
+            onChange={(e) => setLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              setLabelError(null);
+              start(async () => {
+                const res = await setFiberLabel(fiberId, label, shareToken);
+                if (res?.error) setLabelError(res.error);
+              });
+            }}
+          />
+        </label>
+        <div className="mt-1.5 flex items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost px-2 py-0.5 text-[11.5px]"
+            disabled={pending}
+            onClick={() => {
+              setLabelError(null);
+              start(async () => {
+                const res = await setFiberLabel(fiberId, label, shareToken);
+                if (res?.error) setLabelError(res.error);
+              });
+            }}
+          >
+            Сохранить подпись
+          </button>
+          <span className="text-[11px] text-[var(--color-ink-400)]">
+            {currentLabel ? "подпись есть" : "без подписи"}
+          </span>
+        </div>
+        {labelError && <p className="mt-1 text-[11.5px] text-[var(--color-danger)]">{labelError}</p>}
       </div>
 
       {[

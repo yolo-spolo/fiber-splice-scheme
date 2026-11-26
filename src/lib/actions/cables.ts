@@ -11,6 +11,8 @@ import {
 } from "@/lib/cable-layout";
 import { isColorScheme } from "@/lib/colors";
 import { resolveCableEndpoint, type ClosureOption } from "@/lib/cable-endpoints";
+import { resolveEditor } from "@/lib/edit-access";
+import { logHistory } from "@/lib/history";
 
 /** Массив цветов из формы: JSON-строка или повторяющиеся поля. */
 const colorOrderSchema = z
@@ -140,7 +142,12 @@ async function endpointsFor(
   return { from, to };
 }
 
-export async function createCable(formData: FormData) {
+export async function createCable(formData: FormData, shareTokenArg?: string | null) {
+  const shareToken = shareTokenArg ?? (String(formData.get("shareToken") ?? "") || null);
+  const closureIdRaw = String(formData.get("closureId") ?? "");
+  const auth = await resolveEditor(shareToken, closureIdRaw);
+  if ("error" in auth) return { error: auth.error };
+
   const parsed = cableSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Проверьте поля" };
   const d = parsed.data;
@@ -184,33 +191,42 @@ export async function createCable(formData: FormData) {
 
   const fibers = buildFibers(d.fiberCount, d.moduleCount, d.colorScheme, d.colorOrder);
 
-  await prisma.cable.create({
-    data: {
-      closureId: d.closureId,
-      label: d.label,
-      type: nullify(d.type),
-      fiberCount: d.fiberCount,
-      moduleCount: layout.moduleCount,
-      moduleCapacity: layout.moduleCapacity,
-      colorScheme: d.colorScheme,
-      colorOrder: d.colorOrder,
-      moduleColors: d.moduleColors,
-      fromLocation: ends.from.location,
-      fromClosureId: ends.from.closureId,
-      toLocation: ends.to.location,
-      toClosureId: ends.to.closureId,
-      ownership: d.ownership ?? "OURS",
-      sheathColor: nullify(d.sheathColor),
-      order: (maxOrder._max.order ?? -1) + 1,
-      fibers: { create: fibers },
-    },
+  await prisma.$transaction(async (tx) => {
+    const cable = await tx.cable.create({
+      data: {
+        closureId: d.closureId,
+        label: d.label,
+        type: nullify(d.type),
+        fiberCount: d.fiberCount,
+        moduleCount: layout.moduleCount,
+        moduleCapacity: layout.moduleCapacity,
+        colorScheme: d.colorScheme,
+        colorOrder: d.colorOrder,
+        moduleColors: d.moduleColors,
+        fromLocation: ends.from.location,
+        fromClosureId: ends.from.closureId,
+        toLocation: ends.to.location,
+        toClosureId: ends.to.closureId,
+        ownership: d.ownership ?? "OURS",
+        sheathColor: nullify(d.sheathColor),
+        order: (maxOrder._max.order ?? -1) + 1,
+        fibers: { create: fibers },
+      },
+      select: { id: true, label: true, fiberCount: true, moduleCount: true },
+    });
+    await logHistory(tx, auth.actor, d.closureId, {
+      action: "cableCreate",
+      summary: `${cable.label}: ${cable.fiberCount} волокон, ${cable.moduleCount} модулей`,
+      targetId: cable.id,
+    });
   });
 
   revalidatePath(`/closures/${d.closureId}`);
   return { ok: true };
 }
 
-export async function updateCable(id: string, formData: FormData) {
+export async function updateCable(id: string, formData: FormData, shareTokenArg?: string | null) {
+  const shareToken = shareTokenArg ?? (String(formData.get("shareToken") ?? "") || null);
   const parsed = z
     .object({
       label: z.string().trim().min(1).max(60),
@@ -245,6 +261,19 @@ export async function updateCable(id: string, formData: FormData) {
     },
   });
   if (!cable) return { error: "Кабель не найден" };
+  const auth = await resolveEditor(shareToken, cable.closureId);
+  if ("error" in auth) return { error: auth.error };
+
+  const beforeSnapshot = {
+    label: cable.label,
+    type: cable.type,
+    fiberCount: cable.fiberCount,
+    moduleCount: cable.moduleCount,
+    fromLocation: cable.fromLocation,
+    toLocation: cable.toLocation,
+    ownership: cable.ownership,
+    notes: cable.notes,
+  };
 
   const duplicate = await prisma.cable.findFirst({
     where: { closureId: cable.closureId, label: d.label, NOT: { id } },
@@ -288,22 +317,41 @@ export async function updateCable(id: string, formData: FormData) {
     JSON.stringify(d.colorOrder ?? []) !== JSON.stringify(cable.colorOrder);
 
   if (!layoutChanged) {
-    await prisma.cable.update({
-      where: { id },
-      data: {
-        label: d.label,
-        type: nullify(d.type),
-        colorScheme: d.colorScheme ?? cable.colorScheme,
-        colorOrder: d.colorOrder ?? cable.colorOrder,
-        moduleColors: d.moduleColors ?? cable.moduleColors,
-        fromLocation: ends.from.location,
-        fromClosureId: ends.from.closureId,
-        toLocation: ends.to.location,
-        toClosureId: ends.to.closureId,
-        ownership: d.ownership ?? "OURS",
-        sheathColor: nullify(d.sheathColor),
-        notes: nullify(d.notes),
-      },
+    const next = {
+      label: d.label,
+      type: nullify(d.type),
+      fiberCount: cable.fiberCount,
+      moduleCount: cable.moduleCount,
+      fromLocation: ends.from.location,
+      toLocation: ends.to.location,
+      ownership: d.ownership ?? "OURS",
+      notes: nullify(d.notes),
+    };
+    await prisma.$transaction(async (tx) => {
+      await tx.cable.update({
+        where: { id },
+        data: {
+          label: next.label,
+          type: next.type,
+          colorScheme: d.colorScheme ?? cable.colorScheme,
+          colorOrder: d.colorOrder ?? cable.colorOrder,
+          moduleColors: d.moduleColors ?? cable.moduleColors,
+          fromLocation: next.fromLocation,
+          fromClosureId: ends.from.closureId,
+          toLocation: next.toLocation,
+          toClosureId: ends.to.closureId,
+          ownership: next.ownership,
+          sheathColor: nullify(d.sheathColor),
+          notes: next.notes,
+        },
+      });
+      await logHistory(tx, auth.actor, cable.closureId, {
+        action: "cableUpdate",
+        summary: `${beforeSnapshot.label}${beforeSnapshot.label !== next.label ? ` → ${next.label}` : ""}`,
+        before: beforeSnapshot,
+        after: next,
+        targetId: id,
+      });
     });
     revalidatePath(`/closures/${cable.closureId}`);
     return { ok: true };
@@ -394,18 +442,28 @@ export async function updateCable(id: string, formData: FormData) {
         notes: nullify(d.notes),
       },
     });
+    await logHistory(tx, auth.actor, cable.closureId, {
+      action: "cableUpdate",
+      summary: `${beforeSnapshot.label}${beforeSnapshot.label !== d.label ? ` → ${d.label}` : ""}, перестроены волокна`,
+      before: beforeSnapshot,
+      after: { ...beforeSnapshot, label: d.label, fiberCount: nextFiberCount, moduleCount: nextModuleCount },
+      targetId: id,
+    });
   });
 
   revalidatePath(`/closures/${cable.closureId}`);
   return { ok: true, rebuilt: true };
 }
 
-export async function deleteCable(id: string) {
+export async function deleteCable(id: string, shareToken?: string | null) {
   const cable = await prisma.cable.findUnique({
     where: { id },
     include: { fibers: { select: { id: true } } },
   });
   if (!cable) return { error: "Кабель не найден" };
+
+  const auth = await resolveEditor(shareToken, cable.closureId);
+  if ("error" in auth) return { error: auth.error };
 
   const fiberIds = cable.fibers.map((fiber) => fiber.id);
 
@@ -418,6 +476,11 @@ export async function deleteCable(id: string) {
       });
     }
     await tx.cable.delete({ where: { id } });
+    await logHistory(tx, auth.actor, cable.closureId, {
+      action: "cableDelete",
+      summary: `${cable.label} (${fiberIds.length} волокон)`,
+      targetId: id,
+    });
   });
 
   // Волокна чужого кабеля, потерявшие сварку, возвращаем в «свободно».

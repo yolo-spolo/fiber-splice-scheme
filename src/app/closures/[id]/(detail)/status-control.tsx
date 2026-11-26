@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { setClosureStatus } from "@/lib/actions/closures";
 import { STATUS_LABELS } from "@/lib/labels";
+import { useShareToken } from "@/components/edit-scope";
 
 export function StatusControl({
   closureId,
@@ -12,6 +13,7 @@ export function StatusControl({
   status: "DRAFT" | "IN_PROGRESS" | "DONE";
 }) {
   const [pending, start] = useTransition();
+  const shareToken = useShareToken();
 
   return (
     <select
@@ -21,7 +23,8 @@ export function StatusControl({
       onChange={(e) => {
         const next = e.target.value as "DRAFT" | "IN_PROGRESS" | "DONE";
         start(async () => {
-          await setClosureStatus(closureId, next);
+          const result = await setClosureStatus(closureId, next, shareToken);
+          if (result?.error) alert(result.error);
         });
       }}
     >

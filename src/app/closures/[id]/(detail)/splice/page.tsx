@@ -25,6 +25,7 @@ export default async function SplicePage({ params }: { params: Promise<{ id: str
           moduleIndex: f.moduleIndex,
           position: f.position,
           colorCode: f.colorCode,
+          label: f.label,
           status: f.status,
         })),
       }))}

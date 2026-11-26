@@ -10,6 +10,7 @@ import { FIBER_STATUS_LABELS } from "@/lib/labels";
 import { EditCableDialog } from "./edit-cable-dialog";
 import type { ClosureOption } from "@/lib/cable-endpoints";
 import Link from "next/link";
+import { useShareToken } from "@/components/edit-scope";
 
 /** Конец кабеля: муфта объекта становится ссылкой, свободный адрес — текстом. */
 function Endpoint({ location, closureId }: { location: string | null; closureId: string | null }) {
@@ -37,6 +38,7 @@ export function CableCard({
   closures?: ClosureOption[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const shareToken = useShareToken();
   const [pending, start] = useTransition();
   const [statusTarget, setStatusTarget] = useState<CableWithFibers["fibers"][number] | null>(null);
   const [editing, setEditing] = useState(false);
@@ -114,7 +116,7 @@ export function CableCard({
                 )
                   return;
                 start(async () => {
-                  const res = await deleteCable(cable.id);
+                  const res = await deleteCable(cable.id, shareToken);
                   if (res?.error) alert(res.error);
                 });
               }}
@@ -238,7 +240,8 @@ export function CableCard({
                     } ${disabled ? "opacity-40" : ""}`}
                     onClick={() =>
                       start(async () => {
-                        await setFiberStatus(statusTarget.id, status);
+                        const res = await setFiberStatus(statusTarget.id, status, shareToken);
+                        if (res?.error) alert(res.error);
                         setStatusTarget(null);
                       })
                     }

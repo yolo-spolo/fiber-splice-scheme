@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import { resolveShareToken } from "@/lib/share";
+import { resolveShareToken, type ResolvedShare } from "@/lib/share";
+import { prisma } from "@/lib/prisma";
 import { safeUploadPath } from "@/lib/storage";
 
 const MIME: Record<string, string> = {
@@ -21,14 +22,11 @@ export async function GET(
 ) {
   const { token, path } = await params;
   const resolved = await resolveShareToken(token);
-  if (resolved.status !== "ok" || !resolved.link.closureId) {
-    return new NextResponse("forbidden", { status: 403 });
-  }
+  if (resolved.status !== "ok") return new NextResponse("forbidden", { status: 403 });
 
   const relative = path.join("/");
-  if (!relative.startsWith(`${resolved.link.closureId}/`)) {
-    return new NextResponse("forbidden", { status: 403 });
-  }
+  const allowed = await allowedClosureId(resolved.link, relative);
+  if (!allowed) return new NextResponse("forbidden", { status: 403 });
 
   const full = safeUploadPath(relative);
   if (!full) return new NextResponse("forbidden", { status: 403 });
@@ -45,4 +43,24 @@ export async function GET(
   } catch {
     return new NextResponse("not found", { status: 404 });
   }
+}
+
+/**
+ * Чей файл можно отдать по токену. Путь начинается с id муфты, поэтому по
+ * нему видно, чьё это фото; ссылка на муфту пускает только к ней, ссылка на
+ * объект — к любой муфте этого объекта.
+ */
+async function allowedClosureId(
+  link: ResolvedShare,
+  relative: string,
+): Promise<string | null> {
+  const [closureId] = relative.split("/");
+  if (!closureId) return null;
+  if (link.closureId) return link.closureId === closureId ? closureId : null;
+  if (!link.projectId) return null;
+  const closure = await prisma.closure.findUnique({
+    where: { id: closureId },
+    select: { projectId: true },
+  });
+  return closure?.projectId === link.projectId ? closureId : null;
 }

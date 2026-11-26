@@ -7,12 +7,15 @@ import { SPLICE_KIND_LABELS } from "@/lib/labels";
 import { SubmitButton } from "@/components/ui/fields";
 import { SpliceScheme } from "@/components/splice-scheme";
 import { FiberColorPicker } from "@/components/fiber-color-picker";
+import { useShareToken } from "@/components/edit-scope";
+import { setFiberLabel } from "@/lib/actions/splices";
 
 type EditorFiber = {
   id: string;
   moduleIndex: number;
   position: number;
   colorCode: number;
+  label?: string | null;
   status: "FREE" | "SPLICED" | "TRANSIT" | "DAMAGED";
 };
 
@@ -52,6 +55,7 @@ export function SpliceEditor({
   splices: EditorSplice[];
 }) {
   const [pending, start] = useTransition();
+  const shareToken = useShareToken();
   const [selectedA, setSelectedA] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [cassetteId, setCassetteId] = useState<string>(cassettes[0]?.id ?? "");
@@ -64,6 +68,8 @@ export function SpliceEditor({
   const [straightB, setStraightB] = useState("");
   const [showScheme, setShowScheme] = useState(false);
   const [colorTarget, setColorTarget] = useState<string | null>(null);
+  const [labelDraft, setLabelDraft] = useState("");
+  const [labelError, setLabelError] = useState<string | null>(null);
 
   const fiberIndex = useMemo(() => {
     const map = new Map<string, FiberRef>();
@@ -77,6 +83,13 @@ export function SpliceEditor({
         });
       }
     }
+    return map;
+  }, [cables]);
+
+  // Подписи волокон отдельной картой: по id волокна, для панели выбранного.
+  const fibersById = useMemo(() => {
+    const map = new Map<string, EditorFiber>();
+    for (const cable of cables) for (const fiber of cable.fibers) map.set(fiber.id, fiber);
     return map;
   }, [cables]);
 
@@ -109,6 +122,8 @@ export function SpliceEditor({
 
   function handleFiberClick(fiberId: string) {
     setError(null);
+    setLabelError(null);
+    setLabelDraft(fibersById.get(fiberId)?.label ?? "");
     if (splicedFiberIds.has(fiberId)) {
       setError(`${describe(fiberId)} уже сварено. Сначала удалите сварку в списке.`);
       return;
@@ -131,6 +146,7 @@ export function SpliceEditor({
       formData.set("fiberBId", fiberId);
       formData.set("cassetteId", cassetteId);
       formData.set("kind", kind);
+      if (shareToken) formData.set("shareToken", shareToken);
       if (loss) formData.set("lossDb", loss);
       const res = await createSplice(formData);
       if (res?.error) setError(res.error);
@@ -138,6 +154,14 @@ export function SpliceEditor({
         setUndo({ id: (res as { spliceId: string }).spliceId, text: `${describe(a)} ↔ ${describe(fiberId)}` });
         setLoss("");
       }
+    });
+  }
+
+  function saveLabel(fiberId: string) {
+    setLabelError(null);
+    start(async () => {
+      const res = await setFiberLabel(fiberId, labelDraft, shareToken);
+      if (res?.error) setLabelError(res.error);
     });
   }
 
@@ -227,7 +251,7 @@ export function SpliceEditor({
             disabled={pending}
             onClick={() =>
               start(async () => {
-                await deleteSplice(undo.id);
+                await deleteSplice(undo.id, shareToken);
                 setUndo(null);
               })
             }
@@ -321,6 +345,13 @@ export function SpliceEditor({
                               <span className="font-mono text-[10.5px] leading-none text-[var(--color-ink-700)] tabular-nums">
                                 {fiber.position}
                               </span>
+                              {/* Подпись видна прямо на чипе: сварщик находит
+                                  нужного абонента, не открывая карточку. */}
+                              {fiber.label && (
+                                <span className="max-w-[72px] truncate text-[9px] leading-none text-[var(--color-ink-500)]">
+                                  {fiber.label}
+                                </span>
+                              )}
                             </button>
                           );
                         })}
@@ -348,6 +379,37 @@ export function SpliceEditor({
 
             {selectedA && (
               <div className="mt-2 space-y-1.5">
+                {/* Подпись — прямо у выбранного волокна: чаще всего именно
+                    за ней волокно и открывают. */}
+                <label className="block">
+                  <span className="label">Подпись волокна</span>
+                  <input
+                    className="field !py-1.5 text-[12.5px]"
+                    value={labelDraft}
+                    maxLength={120}
+                    placeholder="Абонент: кв. 42, Петров"
+                    onChange={(e) => setLabelDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        saveLabel(selectedA);
+                      }
+                    }}
+                  />
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-ghost px-2 py-0.5 text-[11.5px]"
+                    disabled={pending}
+                    onClick={() => saveLabel(selectedA)}
+                  >
+                    Сохранить подпись
+                  </button>
+                  {labelError && (
+                    <span className="text-[11px] text-[var(--color-danger)]">{labelError}</span>
+                  )}
+                </div>
                 <button
                   type="button"
                   className="btn btn-ghost w-full py-1.5 text-[12.5px]"
@@ -358,7 +420,10 @@ export function SpliceEditor({
                 <button
                   type="button"
                   className="btn btn-ghost w-full py-1.5 text-[12.5px]"
-                  onClick={() => setSelectedA(null)}
+                  onClick={() => {
+                    setSelectedA(null);
+                    setLabelDraft("");
+                  }}
                 >
                   Сбросить выбор
                 </button>
@@ -370,6 +435,7 @@ export function SpliceEditor({
                 <FiberColorPicker
                   fiberId={colorTarget}
                   currentCode={fiberIndex.get(colorTarget)?.colorCode ?? 0}
+                  currentLabel={fibersById.get(colorTarget)?.label ?? null}
                   title={`Цвет: ${describe(colorTarget)}`}
                   onDone={() => setColorTarget(null)}
                 />
@@ -425,7 +491,8 @@ export function SpliceEditor({
                         title="Удалить сварку"
                         onClick={() =>
                           start(async () => {
-                            await deleteSplice(s.id);
+                            const res = await deleteSplice(s.id, shareToken);
+                            if (res?.error) setError(res.error);
                           })
                         }
                       >
@@ -484,7 +551,13 @@ export function SpliceEditor({
                 disabled={pending || !straightA || !straightB}
                 onClick={() =>
                   start(async () => {
-                    const res = await autoSpliceStraight(closureId, straightA, straightB, cassetteId);
+                    const res = await autoSpliceStraight(
+                      closureId,
+                      straightA,
+                      straightB,
+                      cassetteId,
+                      shareToken,
+                    );
                     setStraightOpen(false);
                     if (res?.error) setError(res.error);
                     else setError(null);

@@ -56,9 +56,28 @@ model Closure {
   photos    Photo[]
   splitters Splitter[]
   shares    ShareLink[]
+  events    ClosureEvent[]
 
   @@unique([projectId, number])
   @@index([projectId])
+}
+
+/// Кто и что изменил в муфте: владелец или гость по ссылке с правом правки.
+/// before/after — снимок изменённых полей, чтобы можно было вернуть значение.
+model ClosureEvent {
+  id        String   @id @default(cuid())
+  closureId String
+  closure   Closure  @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  actorKind String   @default("OWNER")
+  actorName String
+  shareId   String?
+  action    String
+  summary   String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([closureId, createdAt])
 }
 
 /// Кассета внутри муфты. Ёмкость по умолчанию 12.
@@ -215,7 +234,12 @@ model Photo {
   @@index([closureId])
 }
 
-/// Публичная read-only ссылка для заказчика.
+enum ShareMode {
+  READ
+  EDIT
+}
+
+/// Публичная ссылка для заказчика: только чтение или с правом правки.
 model ShareLink {
   id        String    @id @default(cuid())
   token     String    @unique
@@ -223,6 +247,7 @@ model ShareLink {
   project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   closureId String?
   closure   Closure?  @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  mode      ShareMode @default(READ)
   expiresAt DateTime?
   revokedAt DateTime?
   views     Int       @default(0)

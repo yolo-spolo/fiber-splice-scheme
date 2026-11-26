@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { resolveEditor } from "@/lib/edit-access";
+import { logHistory } from "@/lib/history";
 
 const createSchema = z.object({
   closureId: z.string().min(1),
@@ -15,6 +17,10 @@ const createSchema = z.object({
 });
 
 export async function createSplice(formData: FormData) {
+  const shareToken = String(formData.get("shareToken") ?? "") || null;
+  const auth = await resolveEditor(shareToken, String(formData.get("closureId") ?? ""));
+  if ("error" in auth) return { error: auth.error };
+
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Проверьте данные сварки" };
   const d = parsed.data;
@@ -45,44 +51,89 @@ export async function createSplice(formData: FormData) {
     };
   }
 
-  const splice = await prisma.splice.create({
-    data: {
-      closureId: d.closureId,
-      fiberAId: d.fiberAId,
-      fiberBId: d.fiberBId,
-      cassetteId: d.cassetteId || null,
-      kind: d.kind ?? "FUSION",
-      lossDb: d.lossDb === "" || d.lossDb == null ? null : Number(d.lossDb),
-      note: d.note?.trim() || null,
-      splicedAt: new Date(),
-    },
-  });
+  const fiberName = (fiber: typeof fiberA) => `${fiber.cable.label} М${fiber.moduleIndex} В${fiber.position}`;
 
-  await prisma.fiber.updateMany({
-    where: { id: { in: [d.fiberAId, d.fiberBId] } },
-    data: { status: "SPLICED" },
+  const splice = await prisma.$transaction(async (tx) => {
+    const created = await tx.splice.create({
+      data: {
+        closureId: d.closureId,
+        fiberAId: d.fiberAId,
+        fiberBId: d.fiberBId,
+        cassetteId: d.cassetteId || null,
+        kind: d.kind ?? "FUSION",
+        lossDb: d.lossDb === "" || d.lossDb == null ? null : Number(d.lossDb),
+        note: d.note?.trim() || null,
+        splicedAt: new Date(),
+      },
+    });
+    await tx.fiber.updateMany({
+      where: { id: { in: [d.fiberAId, d.fiberBId] } },
+      data: { status: "SPLICED" },
+    });
+    await logHistory(tx, auth.actor, d.closureId, {
+      action: "spliceCreate",
+      summary: `${fiberName(fiberA)} ↔ ${fiberName(fiberB)}`,
+      after: { fiberAId: d.fiberAId, fiberBId: d.fiberBId, kind: d.kind ?? "FUSION" },
+      targetId: created.id,
+    });
+    return created;
   });
 
   revalidatePath(`/closures/${d.closureId}`);
   return { ok: true, spliceId: splice.id };
 }
 
-export async function deleteSplice(id: string) {
-  const splice = await prisma.splice.delete({ where: { id } });
-  for (const fiberId of [splice.fiberAId, splice.fiberBId]) {
-    const remaining = await prisma.splice.count({
-      where: { OR: [{ fiberAId: fiberId }, { fiberBId: fiberId }] },
-    });
-    if (remaining === 0) {
-      await prisma.fiber.update({ where: { id: fiberId }, data: { status: "FREE" } });
+export async function deleteSplice(id: string, shareToken?: string | null) {
+  const existing = await prisma.splice.findUnique({
+    where: { id },
+    include: {
+      fiberA: { include: { cable: true } },
+      fiberB: { include: { cable: true } },
+    },
+  });
+  if (!existing) return { error: "Сварка не найдена" };
+
+  const auth = await resolveEditor(shareToken, existing.closureId);
+  if ("error" in auth) return { error: auth.error };
+
+  const splice = await prisma.$transaction(async (tx) => {
+    const removed = await tx.splice.delete({ where: { id } });
+    for (const fiberId of [removed.fiberAId, removed.fiberBId]) {
+      const remaining = await tx.splice.count({
+        where: { OR: [{ fiberAId: fiberId }, { fiberBId: fiberId }] },
+      });
+      if (remaining === 0) {
+        await tx.fiber.update({ where: { id: fiberId }, data: { status: "FREE" } });
+      }
     }
-  }
+    await logHistory(tx, auth.actor, removed.closureId, {
+      action: "spliceDelete",
+      summary: `${existing.fiberA.cable.label} М${existing.fiberA.moduleIndex} В${existing.fiberA.position} ↔ ${existing.fiberB.cable.label} М${existing.fiberB.moduleIndex} В${existing.fiberB.position}`,
+      targetId: removed.id,
+    });
+    return removed;
+  });
   revalidatePath(`/closures/${splice.closureId}`);
   return { ok: true };
 }
 
-export async function updateSpliceLoss(id: string, lossDb: number | null) {
-  const splice = await prisma.splice.update({ where: { id }, data: { lossDb } });
+export async function updateSpliceLoss(id: string, lossDb: number | null, shareToken?: string | null) {
+  const existing = await prisma.splice.findUnique({ where: { id }, select: { closureId: true, lossDb: true } });
+  if (!existing) return { error: "Сварка не найдена" };
+  const auth = await resolveEditor(shareToken, existing.closureId);
+  if ("error" in auth) return { error: auth.error };
+
+  const splice = await prisma.$transaction(async (tx) => {
+    const updated = await tx.splice.update({ where: { id }, data: { lossDb } });
+    await logHistory(tx, auth.actor, updated.closureId, {
+      action: "spliceLoss",
+      summary: `${existing.lossDb ?? "—"} → ${lossDb ?? "—"} дБ`,
+      before: { lossDb: existing.lossDb },
+      after: { lossDb },
+      targetId: id,
+    });
+    return updated;
+  });
   revalidatePath(`/closures/${splice.closureId}`);
   return { ok: true };
 }
@@ -97,7 +148,10 @@ export async function autoSpliceStraight(
   cableAId: string,
   cableBId: string,
   cassetteId?: string,
+  shareToken?: string | null,
 ) {
+  const auth = await resolveEditor(shareToken, closureId);
+  if ("error" in auth) return { error: auth.error };
   if (cableAId === cableBId) return { error: "Выберите два разных кабеля" };
 
   const [fibersA, fibersB] = await Promise.all([
@@ -149,13 +203,24 @@ export async function autoSpliceStraight(
       where: { id: { in: pairs.flatMap((p) => [p.a, p.b]) } },
       data: { status: "SPLICED" },
     });
+    // Автосварка — одна запись на пачку: иначе история из 12 строк на кнопку
+    // вытеснит всё остальное и её невозможно будет прочитать.
+    await logHistory(tx, auth.actor, closureId, {
+      action: "spliceCreate",
+      summary: `прямая сварка: ${pairs.length} пар`,
+      after: { pairs: pairs.length },
+    });
   });
 
   revalidatePath(`/closures/${closureId}`);
   return { ok: true, count: pairs.length };
 }
 
-export async function setFiberStatus(fiberId: string, status: "FREE" | "TRANSIT" | "DAMAGED") {
+export async function setFiberStatus(
+  fiberId: string,
+  status: "FREE" | "TRANSIT" | "DAMAGED",
+  shareToken?: string | null,
+) {
   if (status === "FREE") {
     const linked = await prisma.splice.count({
       where: { OR: [{ fiberAId: fiberId }, { fiberBId: fiberId }] },
@@ -164,10 +229,29 @@ export async function setFiberStatus(fiberId: string, status: "FREE" | "TRANSIT"
       return { error: "Волокно участвует в сварке — сначала удалите сварку" };
     }
   }
-  const fiber = await prisma.fiber.update({
+  const current = await prisma.fiber.findUnique({
     where: { id: fiberId },
-    data: { status },
     include: { cable: true },
+  });
+  if (!current) return { error: "Волокно не найдено" };
+
+  const auth = await resolveEditor(shareToken, current.cable.closureId);
+  if ("error" in auth) return { error: auth.error };
+
+  const fiber = await prisma.$transaction(async (tx) => {
+    const updated = await tx.fiber.update({
+      where: { id: fiberId },
+      data: { status },
+      include: { cable: true },
+    });
+    await logHistory(tx, auth.actor, updated.cable.closureId, {
+      action: "fiberStatus",
+      summary: `${updated.cable.label} М${updated.moduleIndex} В${updated.position}: ${current.status} → ${status}`,
+      before: { status: current.status },
+      after: { status },
+      targetId: fiberId,
+    });
+    return updated;
   });
   revalidatePath(`/closures/${fiber.cable.closureId}`);
   return { ok: true };
@@ -177,15 +261,72 @@ export async function setFiberStatus(fiberId: string, status: "FREE" | "TRANSIT"
  * Смена цвета жилы. Разрешена в любой момент, в том числе для уже сваренного
  * волокна: на практике цвет уточняют прямо во время монтажа.
  */
-export async function setFiberColor(fiberId: string, colorCode: number) {
+export async function setFiberColor(fiberId: string, colorCode: number, shareToken?: string | null) {
   if (!Number.isInteger(colorCode) || colorCode < 0 || colorCode > 23) {
     return { error: "Некорректный цвет" };
   }
-  const fiber = await prisma.fiber.update({
+  const current = await prisma.fiber.findUnique({
     where: { id: fiberId },
-    data: { colorCode },
     include: { cable: true },
+  });
+  if (!current) return { error: "Волокно не найдено" };
+
+  const auth = await resolveEditor(shareToken, current.cable.closureId);
+  if ("error" in auth) return { error: auth.error };
+
+  const fiber = await prisma.$transaction(async (tx) => {
+    const updated = await tx.fiber.update({
+      where: { id: fiberId },
+      data: { colorCode },
+      include: { cable: true },
+    });
+    await logHistory(tx, auth.actor, updated.cable.closureId, {
+      action: "fiberColor",
+      summary: `${updated.cable.label} М${updated.moduleIndex} В${updated.position}: ${current.colorCode} → ${colorCode}`,
+      before: { colorCode: current.colorCode },
+      after: { colorCode },
+      targetId: fiberId,
+    });
+    return updated;
   });
   revalidatePath(`/closures/${fiber.cable.closureId}`);
   return { ok: true, colorCode };
+}
+
+/**
+ * Подпись волокна — «для какого абонента или объекта». Пишется в Fiber.label
+ * и попадает в документ: по подписи монтажник находит нужную жилу быстрее,
+ * чем по номеру модуля и позиции.
+ */
+export async function setFiberLabel(fiberId: string, label: string, shareToken?: string | null) {
+  const current = await prisma.fiber.findUnique({
+    where: { id: fiberId },
+    include: { cable: true },
+  });
+  if (!current) return { error: "Волокно не найдено" };
+
+  const auth = await resolveEditor(shareToken, current.cable.closureId);
+  if ("error" in auth) return { error: auth.error };
+
+  const next = label.replace(/\s+/g, " ").trim().slice(0, 120) || null;
+  if (next === current.label) return { ok: true, label: next };
+
+  const fiber = await prisma.$transaction(async (tx) => {
+    const updated = await tx.fiber.update({
+      where: { id: fiberId },
+      data: { label: next },
+      include: { cable: true },
+    });
+    await logHistory(tx, auth.actor, updated.cable.closureId, {
+      action: "fiberLabel",
+      summary: `${updated.cable.label} М${updated.moduleIndex} В${updated.position}: ${current.label ?? "без подписи"} → ${next ?? "без подписи"}`,
+      before: { label: current.label },
+      after: { label: next },
+      targetId: fiberId,
+    });
+    return updated;
+  });
+  revalidatePath(`/closures/${fiber.cable.closureId}`);
+  revalidatePath(`/closures/${fiber.cable.closureId}/splice`);
+  return { ok: true, label: next };
 }

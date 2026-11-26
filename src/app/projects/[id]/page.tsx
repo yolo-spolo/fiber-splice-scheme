@@ -47,6 +47,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         right={
           <>
             <EditProjectButton project={project} />
+            <Link href={`/projects/${project.id}/share`} className="btn btn-ghost">
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5.93" strokeLinecap="round" />
+                <path d="M14 11a5 5 0 0 0-7.07 0L5.51 12.4a5 5 0 0 0 7.07 7.07L14 18.07" strokeLinecap="round" />
+              </svg>
+              Ссылки
+            </Link>
             {project.closures.length > 0 && (
               <Link href={`/projects/${project.id}/print`} className="btn btn-ghost">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">

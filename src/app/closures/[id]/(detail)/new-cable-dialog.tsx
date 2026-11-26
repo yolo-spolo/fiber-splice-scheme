@@ -12,6 +12,7 @@ import { type CableStandard, type CableTemplate } from "@/lib/cable-templates";
 import { cableLayout } from "@/lib/cable-layout";
 import { ClosurePicker } from "@/components/closure-picker";
 import type { ClosureOption } from "@/lib/cable-endpoints";
+import { useShareToken } from "@/components/edit-scope";
 
 export function NewCableDialog({
   closureId,
@@ -36,6 +37,7 @@ export function NewCableDialog({
   closures?: ClosureOption[];
 }) {
   const [open, setOpen] = useState(false);
+  const shareToken = useShareToken();
   const [error, setError] = useState<string | null>(null);
   const [typeName, setTypeName] = useState("");
   // 24 волокна в одном модуле не помещаются: диалог открывался
@@ -120,7 +122,7 @@ export function NewCableDialog({
 
             <form
               action={async (formData) => {
-                const res = await createCable(formData);
+                const res = await createCable(formData, shareToken);
                 if (res?.error) setError(res.error);
                 else {
                   setError(null);

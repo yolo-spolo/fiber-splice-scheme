@@ -9,6 +9,7 @@ const TABS = [
   { slug: "photos", label: "Фото", short: "Фото" },
   { slug: "check", label: "Проверка", short: "Проверка" },
   { slug: "share", label: "Ссылка", short: "Ссылка" },
+  { slug: "history", label: "История", short: "История" },
 ];
 
 export function ClosureTabs({ closureId }: { closureId: string }) {
