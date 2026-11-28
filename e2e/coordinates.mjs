@@ -54,12 +54,14 @@ check("пара разобрана в lat/lng", hiddenLat === "44.7234" && hidde
 await page.screenshot({ path: `${SHOTS}/coords-full.png`, fullPage: false });
 
 await page.getByRole("button", { name: "Сохранить" }).click();
+// Диалог закрывается только после успешного ответа сервера. Уходить на другую
+// страницу раньше нельзя: `goto` обрывает ещё летящий запрос, и сохранение
+// теряется — в CI это давало «координаты на странице муфты» со старым адресом.
+await page.getByRole("dialog").waitFor({ state: "hidden", timeout: 20_000 });
 await page.waitForLoadState("networkidle");
 
 await page.goto(`${BASE}${closureHref}`);
 await page.waitForLoadState("networkidle");
-// Сохранение идёт серверным экшеном с пересчётом страницы: читать один раз
-// сразу после клика — гонка. Ждём нужного значения.
 const mapCoords = page.locator("text=/\\d+\\.\\d+, \\d+\\.\\d+/").first();
 const saved = await mapCoords
   .filter({ hasText: "44.7234, 37.7681" })

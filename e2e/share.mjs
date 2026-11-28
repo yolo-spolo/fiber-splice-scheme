@@ -53,7 +53,10 @@ await page.waitForTimeout(400);
 await page.fill('input[placeholder="Подпись к фото"]', "Муфта после монтажа кассет");
 await page.screenshot({ path: `${OUT}/12-photo-pin.png` });
 await page.click('button:has-text("Сохранить")');
-await page.waitForTimeout(1500);
+// Ждём, пока метки действительно сохранятся: иначе следующий переход обрывает
+// ещё летящий запрос.
+await page.waitForSelector("text=без меток", { state: "detached", timeout: 20_000 }).catch(() => {});
+await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}/13-photos-saved.png`, fullPage: true });
 
 console.log("→ публичная ссылка");

@@ -90,7 +90,8 @@ const notesField = g.locator('textarea[name="notes"]');
 check("диалог муфты открылся", (await notesField.count()) > 0);
 await notesField.fill("Правка по ссылке: заменили кассету");
 await g.getByRole("button", { name: "Сохранить" }).click();
-await g.waitForTimeout(1500);
+// Диалог закрывается по успешному ответу сервера — это надёжнее паузы.
+await g.getByRole("dialog").waitFor({ state: "hidden", timeout: 20_000 });
 
 // 3. История: обе правки от имени гостя.
 await g.getByRole("button", { name: "История" }).click();
