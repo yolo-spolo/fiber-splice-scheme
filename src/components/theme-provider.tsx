@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   initialMode,
   isGuestPath,
@@ -36,30 +36,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Начальное значение постоянное: так серверный и клиентский рендер совпадают.
   const [mode, setModeState] = useState<ThemeMode>("system");
   const [resolved, setResolved] = useState<ResolvedTheme>("light");
-  const firstRun = useRef(true);
+
+  // Тему до первой отрисовки уже поставил inline-скрипт — здесь только
+  // повторяем его решение. Своё не применяем: состояние ещё «system», и на
+  // гостевой странице это вернуло бы тему ОС, то есть тёмную. Читаем DOM,
+  // а не хранилище, чтобы не расходиться со скриптом; повторный вызов в
+  // Strict Mode идемпотентен.
+  useEffect(() => {
+    const root = document.documentElement;
+    const fromScript = root.dataset.themeMode;
+    setModeState(
+      isThemeMode(fromScript)
+        ? fromScript
+        : initialMode(
+            localStorage.getItem(THEME_STORAGE_KEY),
+            isGuestPath(window.location.pathname),
+          ),
+    );
+    setResolved(root.dataset.theme === "dark" ? "dark" : "light");
+  }, []);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    if (firstRun.current) {
-      firstRun.current = false;
-      // Тему до первой отрисовки уже поставил inline-скрипт. Применять здесь
-      // состояние «system» нельзя: на гостевой странице оно вернуло бы тему
-      // ОС и светлая страница успела бы мигнуть тёмной.
-      const fromScript = document.documentElement.dataset.themeMode;
-      setModeState(
-        isThemeMode(fromScript)
-          ? fromScript
-          : initialMode(
-              localStorage.getItem(THEME_STORAGE_KEY),
-              isGuestPath(window.location.pathname),
-            ),
-      );
-      setResolved(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
-    } else {
-      setResolved(apply(mode, media.matches));
-    }
-
     // В режиме «как в системе» следим за сменой настроек ОС.
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
       if (mode === "system") setResolved(apply("system", media.matches));
     };
@@ -70,6 +69,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setMode = useCallback((next: ThemeMode) => {
     localStorage.setItem(THEME_STORAGE_KEY, next);
     setModeState(next);
+    setResolved(apply(next, window.matchMedia("(prefers-color-scheme: dark)").matches));
   }, []);
 
   const value = useMemo(() => ({ mode, resolved, setMode }), [mode, resolved, setMode]);

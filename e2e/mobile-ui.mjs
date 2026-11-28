@@ -131,6 +131,31 @@ check(
 await page.screenshot({ path: `${SHOTS}/mobile-closure-dialog.png` });
 await page.getByRole("button", { name: "Закрыть" }).click();
 
+// Тот же класс панели стоит у остальных форм: проверяем ещё «Новый объект»
+// на совсем низком окне, чтобы регрессия в одной форме не осталась незамеченной.
+const short = await browser.newContext({ viewport: { width: 360, height: 560 }, hasTouch: true });
+const sp = await short.newPage();
+await signIn(sp);
+await sp.getByRole("button", { name: /Новый объект/ }).first().click();
+await sp.getByRole("dialog").waitFor();
+await sp.waitForTimeout(300);
+const shortDialog = await sp.evaluate(() => {
+  const panel = document.querySelector('[role="dialog"]').firstElementChild;
+  const box = panel.getBoundingClientRect();
+  return {
+    top: Math.round(box.top),
+    bottom: Math.round(box.bottom),
+    viewport: window.innerHeight,
+    scrolls: panel.scrollHeight > panel.clientHeight,
+  };
+});
+check(
+  "короткое окно: форма объекта тоже в пределах экрана",
+  shortDialog.top >= 0 && shortDialog.bottom <= shortDialog.viewport + 1 && shortDialog.scrolls,
+  JSON.stringify(shortDialog),
+);
+await short.close();
+
 // ─── 2. Тема гостевой ссылки ────────────────────────────────────────────────
 // Ссылка на муфту — тем же путём, что и в copy-link.
 await page.goto(`${BASE}${projectHref}/share`).catch(() => {});
@@ -198,13 +223,26 @@ check("тёмная тема остаётся после перезагрузк�
 await gp.emulateMedia({ media: "print" });
 const printed = await gp.evaluate(() => {
   const heading = document.querySelector("h1");
+  const root = getComputedStyle(document.documentElement);
   return {
     text: getComputedStyle(heading).color,
     background: getComputedStyle(document.body).backgroundColor,
+    // Переменные проверяем отдельно: текст мог остаться тёмным по наследству,
+    // а на бумагу всё равно ушли бы тёмные плашки и линии.
+    ink: root.getPropertyValue("--color-ink-900").trim(),
+    paper: root.getPropertyValue("--color-paper").trim(),
   };
 });
 await gp.emulateMedia({ media: "screen" });
 check("PDF печатается светлым", printed.text === "rgb(17, 26, 44)", JSON.stringify(printed));
+// Сборка минифицирует CSS и сокращает #ffffff до #fff — сравниваем нормализованно.
+const hex = (value) =>
+  value.length === 4 ? `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}` : value;
+check(
+  "на бумаге светлые переменные темы",
+  hex(printed.ink) === "#111a2c" && hex(printed.paper) === "#ffffff",
+  JSON.stringify(printed),
+);
 
 await browser.close();
 process.exit(failures ? 1 : 0);
