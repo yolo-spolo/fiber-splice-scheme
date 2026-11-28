@@ -1,7 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { resolveShareToken, shareAllowsClosureId, type ResolvedShare } from "@/lib/share";
-import { prisma } from "@/lib/prisma";
 import { safeUploadPath } from "@/lib/storage";
 
 const MIME: Record<string, string> = {

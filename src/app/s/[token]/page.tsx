@@ -21,7 +21,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
   const resolved = await resolveShareToken(token);
 
   if (resolved.status !== "ok") {
-    return <ShareUnavailable status={resolved.status} />;
+    return <ShareUnavailable status={resolved.status} token={token} />;
   }
 
   const { link } = resolved;
@@ -94,7 +94,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
 
   const loaded = await loadSharedClosure(link, closureId);
   if (loaded.status === "notfound") notFound();
-  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" />;
+  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" token={token} />;
   const { closure } = loaded;
 
   // Публичная схема для заказчика — всегда светлая, независимо от темы исполнителя.

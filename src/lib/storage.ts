@@ -15,7 +15,7 @@ export async function saveImage(
   closureId: string,
   buffer: Buffer,
   ext = "jpg",
-): Promise<{ file: string; thumb: string }> {
+): Promise<{ file: string; thumb: string; width: number; height: number }> {
   const sharp = (await import("sharp")).default;
   const dir = closureDir(closureId);
   await mkdir(dir, { recursive: true });
@@ -46,6 +46,11 @@ export async function saveImage(
   return {
     file: path.posix.join(closureId, fileName),
     thumb: path.posix.join(closureId, thumbName),
+    // Размеры исходника: раньше они вычислялись и выбрасывались, а в базу
+    // писались нули — по ним нельзя было ни посчитать место, ни показать фото
+    // без загрузки файла.
+    width,
+    height,
   };
 }
 
@@ -63,10 +68,4 @@ export function safeUploadPath(relativePath: string): string | null {
   const full = path.resolve(root, relativePath);
   if (!full.startsWith(root + path.sep)) return null;
   return full;
-}
-
-export async function imageSize(buffer: Buffer): Promise<{ width: number; height: number }> {
-  const sharp = (await import("sharp")).default;
-  const meta = await sharp(buffer, { failOn: "none" }).metadata();
-  return { width: meta.width ?? 0, height: meta.height ?? 0 };
 }

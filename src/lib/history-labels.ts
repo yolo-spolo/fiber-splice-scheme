@@ -1,3 +1,5 @@
+import { describeChanges, unrepeatedChanges, type HistoryChange } from "./history-diff";
+
 /**
  * Словарь истории изменений муфты — без базы и без Next, чтобы его можно было
  * проверять тестами и использовать в интерфейсе и в документе.
@@ -65,6 +67,8 @@ export type HistoryViewItem = {
   summary: string;
   createdAt: string;
   restorable: boolean;
+  /** Что именно было и стало. Пусто — значит, показывать нечего. */
+  changes: HistoryChange[];
 };
 
 export function toHistoryItem(event: {
@@ -74,15 +78,19 @@ export function toHistoryItem(event: {
   action: string;
   summary: string;
   createdAt: Date;
+  before?: unknown;
+  after?: unknown;
 }): HistoryViewItem {
+  const summary = event.summary;
   return {
     id: event.id,
     actorKind: event.actorKind,
     actorName: event.actorName,
     action: event.action,
     actionLabel: actionLabel(event.action),
-    summary: event.summary,
+    summary,
     createdAt: event.createdAt.toISOString(),
     restorable: Boolean(RESTORABLE[event.action as HistoryAction]),
+    changes: unrepeatedChanges(summary, describeChanges(event.before, event.after)),
   };
 }

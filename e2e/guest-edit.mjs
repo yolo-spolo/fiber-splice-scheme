@@ -37,7 +37,6 @@ const projectHref = await owner.locator('a[href^="/projects/"]').first().getAttr
 await owner.goto(`${BASE}${projectHref}`);
 await owner.waitForLoadState("networkidle");
 const closureHref = await owner.locator('a[href^="/closures/"]').first().getAttribute("href");
-const closureId = closureHref.split("/").pop();
 
 await owner.goto(`${BASE}${closureHref}/share`);
 await owner.waitForLoadState("networkidle");

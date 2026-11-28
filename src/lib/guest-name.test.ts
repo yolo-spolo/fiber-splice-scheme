@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeGuestCookie,
   encodeGuestCookie,
+  GUEST_COOKIE_DAYS,
   GUEST_NAME_MAX,
   guestCookieName,
   normalizeGuestName,
@@ -38,5 +39,9 @@ describe("cookie имени", () => {
   it("у каждой ссылки своя cookie", () => {
     expect(guestCookieName("abc")).not.toBe(guestCookieName("def"));
     expect(guestCookieName("abc").startsWith("fiber_guest_")).toBe(true);
+  });
+
+  it("живёт месяц, а не полгода: имя нужно на время работ", () => {
+    expect(GUEST_COOKIE_DAYS).toBe(30);
   });
 });

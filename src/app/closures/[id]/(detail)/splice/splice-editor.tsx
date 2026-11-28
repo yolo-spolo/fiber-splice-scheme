@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import { autoSpliceStraight, createSplice, deleteSplice } from "@/lib/actions/splices";
 import { colorByCode, moduleColorCode, swatchBackground } from "@/lib/colors";
 import { SPLICE_KIND_LABELS } from "@/lib/labels";
-import { SubmitButton } from "@/components/ui/fields";
 import { SpliceScheme } from "@/components/splice-scheme";
 import { FiberColorPicker } from "@/components/fiber-color-picker";
 import { useShareToken } from "@/components/edit-scope";

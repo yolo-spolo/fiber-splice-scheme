@@ -29,12 +29,10 @@ function Endpoint({ location, closureId }: { location: string | null; closureId:
 export function CableCard({
   cable,
   splicedIds,
-  closureId,
   closures = [],
 }: {
   cable: CableWithFibers;
   splicedIds: string[];
-  closureId: string;
   closures?: ClosureOption[];
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -255,6 +253,14 @@ export function CableCard({
             <p className="mt-2.5 text-[11.5px] text-[var(--color-ink-400)]">
               Статус «сварено» ставится автоматически при создании сварки и снимается вместе с ней.
             </p>
+            {/* Из карточки волокна виден весь маршрут: именно здесь монтажник
+                и задумывается «а куда эта жила идёт дальше». */}
+            <Link
+              href={`/closures/${cable.closureId}/trace?fiber=${statusTarget.id}`}
+              className="btn btn-ghost mt-2 w-full justify-center py-1.5 text-[12.5px]"
+            >
+              Показать трассу волокна
+            </Link>
           </div>
         </div>
       )}

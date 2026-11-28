@@ -1,0 +1,17 @@
+[Unit]
+Description=Fiber splice: резервная копия базы и фото
+Documentation=https://github.com/yolo-spolo/fiber-splice-scheme
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/fiber
+# Сборка .next в ежедневный набор не входит: её всегда можно повторить из
+# исходников, а весит она около 57 МБ за каждый день хранения.
+ExecStart=/opt/node/bin/node scripts/backup.mjs --no-build --keep 14 --keep-build 2
+StandardOutput=append:/var/log/fiber-backup.log
+StandardError=append:/var/log/fiber-backup.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AppShell, EmptyState, PageTitle } from "@/components/app-shell";
-import { ColorStrip } from "@/components/fiber-chip";
 import { requireSession } from "@/lib/session";
 import { NewProjectDialog } from "./new-project-dialog";
 

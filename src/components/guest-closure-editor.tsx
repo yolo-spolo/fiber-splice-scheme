@@ -16,6 +16,7 @@ import { fiberStats, type ClosureData } from "@/lib/closure-data";
 import { actorLabel, type HistoryViewItem } from "@/lib/history-labels";
 import { closureEditorData, splicedFiberIds, type ClosureEditorData } from "@/lib/editor-data";
 import type { CableTypeOption } from "@/lib/cable-presets";
+import { GuestNameForm } from "@/app/s/[token]/name-form";
 
 type Tab = "cables" | "splice" | "photos" | "history";
 
@@ -57,6 +58,7 @@ export function GuestClosureEditor({
   canEdit: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("cables");
+  const [renaming, setRenaming] = useState(false);
   const stats = fiberStats(closure);
   const splicedIds = splicedFiberIds(closure);
   // Пропсы редакторов собирает общий модуль: раньше эта проводка была
@@ -84,8 +86,37 @@ export function GuestClosureEditor({
         <p className="mt-1 flex flex-wrap gap-x-2 text-[12.5px] text-[var(--color-ink-500)]">
           {formatPostalAddress(closure) && <span>{closureKindLabel(closure.kind)}</span>}
           {coordinates && <span className="font-mono tabular-nums">{coordinates}</span>}
-          {guestName && <span>правит: {guestName}</span>}
+          {guestName && !renaming && (
+            <span>
+              правит: {guestName}{" "}
+              <button
+                type="button"
+                className="text-[var(--color-accent)] hover:underline"
+                onClick={() => setRenaming(true)}
+              >
+                сменить
+              </button>
+            </span>
+          )}
         </p>
+        {/* Имя подписывает историю, и ошибиться в нём легко: «Иван» вместо
+            «Иван Петров». Раньше поменять его можно было только очисткой
+            cookie в браузере — то есть никак. */}
+        {renaming && (
+          <div className="card mt-2 p-3">
+            <div className="mb-2 flex items-baseline gap-2">
+              <span className="text-[13px] font-medium">Имя в истории</span>
+              <button
+                type="button"
+                className="ml-auto text-[11.5px] text-[var(--color-ink-500)] hover:underline"
+                onClick={() => setRenaming(false)}
+              >
+                Отмена
+              </button>
+            </div>
+            <GuestNameForm token={token} initialName={guestName ?? ""} onSaved={() => setRenaming(false)} />
+          </div>
+        )}
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
@@ -134,7 +165,6 @@ export function GuestClosureEditor({
                   key={cable.id}
                   cable={cable}
                   splicedIds={splicedIds}
-                  closureId={closure.id}
                   closures={siblingClosures}
                 />
               ))}

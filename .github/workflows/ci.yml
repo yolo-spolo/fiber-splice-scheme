@@ -57,5 +57,8 @@ jobs:
       - name: Юнит-тесты
         run: npm test
 
+      - name: Линт
+        run: npm run lint
+
       - name: Сборка
         run: npm run build

@@ -2,13 +2,19 @@
 /**
  * Резервная копия данных и текущей сборки.
  *
- *   npm run backup                 # дамп БД + фото, проверка и ротация
- *   npm run backup -- --keep 30    # сколько последних наборов хранить (по умолчанию 14)
+ *   npm run backup                     # дамп БД + фото + сборка, проверка и ротация
+ *   npm run backup -- --keep 30        # сколько последних наборов хранить (по умолчанию 14)
+ *   npm run backup -- --no-build       # без архива .next (так работает таймер)
+ *   npm run backup -- --keep-build 3   # сколько архивов сборки хранить (по умолчанию 2)
  *
  * Куда: /root/backups/fiber (или BACKUP_DIR). Каждый запуск создаёт набор
  * с одной меткой времени: db-*.sql.gz, uploads-*.tar.gz, next-build-*.tar.gz.
  * Дамп сразу восстанавливается в одноразовую базу и сверяется по счётчикам —
  * «бэкап, который не проверяли» бэкапом не считается.
+ *
+ * Ежедневный таймер (`deploy/fiber-backup.timer`) запускает его с `--no-build`:
+ * сборку всегда можно повторить из исходников, а 57 МБ в сутки — это не то,
+ * что стоит хранить ради отката на день назад.
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -22,6 +28,9 @@ const DB_USER = process.env.BACKUP_DB_USER ?? "fiber";
 const VERIFY_DB = "fiber_backup_verify";
 const keepArg = process.argv.indexOf("--keep");
 const KEEP = keepArg > -1 ? Number(process.argv[keepArg + 1]) || 14 : 14;
+const keepBuildArg = process.argv.indexOf("--keep-build");
+const BUILD_KEEP = keepBuildArg > -1 ? Number(process.argv[keepBuildArg + 1]) || 2 : 2;
+const SKIP_BUILD = process.argv.includes("--no-build");
 
 function stamp() {
   const now = new Date();
@@ -91,13 +100,17 @@ try {
   sh("docker", ["exec", DB_CONTAINER, "dropdb", "-U", DB_USER, "--force", "--if-exists", VERIFY_DB]);
 }
 
-step("текущая сборка .next");
-const buildDir = path.join(ROOT, ".next");
-const buildFile = path.join(DIR, `next-build-${label}.tar.gz`);
-if (existsSync(buildDir)) {
-  sh("tar", ["-czf", buildFile, "-C", ROOT, ".next"]);
+if (SKIP_BUILD) {
+  console.log("→ сборка .next: пропущена (--no-build)");
 } else {
-  console.log("  .next нет — архив сборки пропущен");
+  step("текущая сборка .next");
+  const buildDir = path.join(ROOT, ".next");
+  const buildFile = path.join(DIR, `next-build-${label}.tar.gz`);
+  if (existsSync(buildDir)) {
+    sh("tar", ["-czf", buildFile, "-C", ROOT, ".next"]);
+  } else {
+    console.log("  .next нет — архив сборки пропущен");
+  }
 }
 
 step(`ротация: оставляю последние ${KEEP} наборов`);
@@ -117,9 +130,28 @@ for (const old of labels.slice(0, Math.max(0, labels.length - KEEP))) {
   }
 }
 
+// Архивы сборки — отдельная политика: они большие, а нужны редко.
+const builds = readdirSync(DIR)
+  .map((name) => name.match(/^next-build-(.+)\.tar\.gz$/)?.[1])
+  .filter(Boolean)
+  .sort();
+const staleBuilds = builds.slice(0, Math.max(0, builds.length - BUILD_KEEP));
+if (staleBuilds.length > 0) {
+  console.log(`→ сборки: оставляю последние ${BUILD_KEEP}, удаляю ${staleBuilds.length}`);
+  for (const old of staleBuilds) rmSync(path.join(DIR, `next-build-${old}.tar.gz`));
+}
+
 console.log("\nГотово:");
 for (const name of readdirSync(DIR).filter((n) => n.includes(label)).sort()) {
   const size = (statSync(path.join(DIR, name)).size / 1024 / 1024).toFixed(1);
   console.log(`  ${name} — ${size} МБ`);
 }
+const allLabels = [
+  ...new Set(
+    readdirSync(DIR)
+      .map((name) => name.match(/^(?:db|uploads|next-build)-(.+)\.(?:sql\.gz|tar\.gz)$/)?.[1])
+      .filter(Boolean),
+  ),
+].sort();
 console.log(`  каталог: ${DIR}`);
+console.log(`  наборов всего: ${allLabels.length}, свежий: ${allLabels.at(-1) ?? "—"}`);

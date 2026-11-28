@@ -1,4 +1,4 @@
-import { colorByCode, moduleColorCode, swatchBackground } from "@/lib/colors";
+import { colorByCode, moduleColorCode } from "@/lib/colors";
 
 export type SchemeCable = {
   id: string;

@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { EditActor } from "@/lib/edit-access";
-import { HISTORY_ACTIONS, RESTORABLE, type HistoryAction } from "@/lib/history-labels";
+import type { HistoryAction } from "@/lib/history-labels";
 
 export { HISTORY_ACTIONS, RESTORABLE, actionLabel, actorLabel } from "@/lib/history-labels";
 export type { HistoryAction } from "@/lib/history-labels";

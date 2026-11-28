@@ -1,0 +1,14 @@
+[Unit]
+Description=Fiber splice: ежедневная резервная копия в 03:40
+
+[Timer]
+# Ночью, когда никто не правит схему. Persistent=true догоняет пропущенный
+# запуск после перезагрузки — иначе сервер, выключенный на выходные, тихо
+# остался бы без свежих копий.
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=fiber-backup.service
+
+[Install]
+WantedBy=timers.target

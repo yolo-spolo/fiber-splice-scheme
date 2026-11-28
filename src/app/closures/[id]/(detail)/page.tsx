@@ -65,7 +65,6 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
               key={cable.id}
               cable={cable}
               splicedIds={splicedIds}
-              closureId={closure.id}
               closures={siblingClosures}
             />
           ))}

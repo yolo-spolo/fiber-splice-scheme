@@ -3,13 +3,18 @@
 import { cookies } from "next/headers";
 import { resolveShareToken } from "@/lib/share";
 import { shareCanEdit } from "@/lib/share-access";
-import { encodeGuestCookie, guestCookieName, normalizeGuestName } from "@/lib/guest-name";
-
-const HALF_YEAR = 60 * 60 * 24 * 180;
+import {
+  encodeGuestCookie,
+  GUEST_COOKIE_MAX_AGE,
+  guestCookieName,
+  normalizeGuestName,
+} from "@/lib/guest-name";
 
 /**
- * Имя гостя по ссылке с правкой. Cookie своя у каждого токена и живёт полгода:
+ * Имя гостя по ссылке с правкой. Cookie своя у каждого токена и живёт месяц:
  * человек не вводит имя на каждой странице, а чужие ссылки его не путают.
+ *
+ * Этой же функцией имя меняется: запись cookie перезаписывает прежнее.
  */
 export async function saveGuestName(token: string, rawName: string) {
   const resolved = await resolveShareToken(token);
@@ -24,9 +29,19 @@ export async function saveGuestName(token: string, rawName: string) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: HALF_YEAR,
+    maxAge: GUEST_COOKIE_MAX_AGE,
     secure: (process.env.APP_URL ?? "").startsWith("https://"),
   });
 
   return { ok: true, name };
+}
+
+/**
+ * Забыть имя гостя по этой ссылке. Вызывается со страницы «ссылка не
+ * работает»: сама ссылка уже мертва, и её cookie в браузере больше ни к чему.
+ */
+export async function forgetGuestName(token: string) {
+  const store = await cookies();
+  store.delete(guestCookieName(token));
+  return { ok: true };
 }

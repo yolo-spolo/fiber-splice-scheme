@@ -32,14 +32,14 @@ export default async function SharedClosurePage({
 }) {
   const { token, closureId } = await params;
   const resolved = await resolveShareToken(token);
-  if (resolved.status !== "ok") return <ShareUnavailable status={resolved.status} />;
+  if (resolved.status !== "ok") return <ShareUnavailable status={resolved.status} token={token} />;
 
   const { link } = resolved;
   // Загрузка и проверка одним шагом: ссылка на объект не должна открывать
   // муфту чужого объекта, а раздельные проверки успевали разойтись.
   const loaded = await loadSharedClosure(link, closureId);
   if (loaded.status === "notfound") notFound();
-  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" />;
+  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" token={token} />;
   const { closure } = loaded;
 
   // Просмотр считаем только после того, как ссылка действительно открыла

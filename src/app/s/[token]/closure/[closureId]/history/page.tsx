@@ -26,13 +26,13 @@ export default async function SharedClosureHistoryPage({
 }) {
   const { token, closureId } = await params;
   const resolved = await resolveShareToken(token);
-  if (resolved.status !== "ok") return <ShareUnavailable status={resolved.status} />;
+  if (resolved.status !== "ok") return <ShareUnavailable status={resolved.status} token={token} />;
 
   // С объектом муфты: иначе ссылка на объект открывала бы историю любой
   // муфты в базе.
   const loaded = await loadSharedClosure(resolved.link, closureId);
   if (loaded.status === "notfound") notFound();
-  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" />;
+  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" token={token} />;
   const { closure } = loaded;
   const events = await closureHistory(closure.id, 200);
 

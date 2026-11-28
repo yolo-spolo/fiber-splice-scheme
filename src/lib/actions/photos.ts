@@ -35,8 +35,8 @@ export async function uploadPhoto(formData: FormData) {
         cassetteId: cassetteId || null,
         file: saved.file,
         thumb: saved.thumb,
-        width: 0,
-        height: 0,
+        width: saved.width,
+        height: saved.height,
         caption: caption || null,
         order: (last._max.order ?? -1) + 1,
       },
@@ -62,7 +62,7 @@ export async function deletePhoto(id: string, shareToken?: string | null) {
       const row = await prisma.photo.findUnique({ where: { id } });
       return row ? { closureId: row.closureId, row } : null;
     },
-    write: async (tx, current) => {
+    write: async (tx) => {
       const removed = await tx.photo.delete({ where: { id } });
       removedFiles.push({ file: removed.file, thumb: removed.thumb });
       return {

@@ -8,7 +8,18 @@ import { saveGuestName } from "@/lib/actions/guest";
  * Обязательный шаг перед первой правкой: без имени история изменений
  * превращается в «кто-то что-то поменял».
  */
-export function GuestNameForm({ token, initialName = "" }: { token: string; initialName?: string }) {
+export function GuestNameForm({
+  token,
+  initialName = "",
+  onSaved,
+  submitLabel = "Продолжить",
+}: {
+  token: string;
+  initialName?: string;
+  /** Вызывается после того, как сервер принял имя. */
+  onSaved?: () => void;
+  submitLabel?: string;
+}) {
   const [name, setName] = useState(initialName);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -29,6 +40,7 @@ export function GuestNameForm({ token, initialName = "" }: { token: string; init
         // Cookie уже стоит, но серверный экшен не перерисовывает текущую
         // страницу: обновляем её сами, чтобы открылся редактор.
         router.refresh();
+        onSaved?.();
       }}
     >
       <label className="block">
@@ -50,7 +62,7 @@ export function GuestNameForm({ token, initialName = "" }: { token: string; init
       </p>
       {error && <p className="text-[12px] text-[var(--color-danger)]">{error}</p>}
       <button type="submit" className="btn btn-primary" disabled={pending}>
-        {pending ? "Сохраняю…" : "Продолжить"}
+        {pending ? "Сохраняю…" : submitLabel}
       </button>
     </form>
   );

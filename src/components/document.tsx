@@ -389,15 +389,29 @@ export function SpliceDocument({
             </h2>
             <ul className="space-y-0.5 text-[10.5px] text-[var(--color-ink-700)]">
               {history.slice(0, 5).map((event) => (
-                <li key={event.id} className="flex flex-wrap gap-x-1.5">
-                  <span className="shrink-0 tabular-nums text-[var(--color-ink-400)]">
-                    {new Date(event.createdAt).toLocaleString("ru-RU", {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
-                  </span>
-                  <span className="shrink-0 font-medium">{actorLabel(event)}</span>
-                  <span className="min-w-0 break-words">{event.summary}</span>
+                <li key={event.id}>
+                  <div className="flex flex-wrap gap-x-1.5">
+                    <span className="shrink-0 tabular-nums text-[var(--color-ink-400)]">
+                      {new Date(event.createdAt).toLocaleString("ru-RU", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                    <span className="shrink-0 font-medium">{actorLabel(event)}</span>
+                    <span className="min-w-0 break-words">{event.summary}</span>
+                  </div>
+                  {/* «Было → стало» в документе нужно для разбора: по одной
+                      подписи «К1» нельзя понять, что именно поправили. Больше
+                      трёх строк на событие не печатаем — лист кончится. */}
+                  {event.changes.length > 0 && (
+                    <div className="pl-0 text-[9.5px] text-[var(--color-ink-500)]">
+                      {event.changes
+                        .slice(0, 3)
+                        .map((change) => `${change.label}: ${change.before} → ${change.after}`)
+                        .join(" · ")}
+                      {event.changes.length > 3 ? ` · ещё ${event.changes.length - 3}` : ""}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

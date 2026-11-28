@@ -74,4 +74,19 @@ describe("toHistoryItem", () => {
   it("неизвестное действие не прячет, а показывает как есть", () => {
     expect(toHistoryItem({ ...event, action: "futureAction" }).actionLabel).toBe("futureAction");
   });
+
+  it("доносит «было → стало» до списка", () => {
+    const item = toHistoryItem({
+      ...event,
+      before: { label: null },
+      after: { label: "Абонент" },
+    });
+    expect(item.changes).toEqual([
+      { field: "label", label: "подпись", before: "—", after: "Абонент" },
+    ]);
+  });
+
+  it("запись без снимков не ломает список", () => {
+    expect(toHistoryItem(event).changes).toEqual([]);
+  });
 });

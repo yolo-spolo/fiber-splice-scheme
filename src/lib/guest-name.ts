@@ -2,6 +2,14 @@
 export const GUEST_NAME_MAX = 60;
 export const GUEST_COOKIE_PREFIX = "fiber_guest_";
 
+/**
+ * Сколько живёт cookie с именем. Месяц, а не полгода: имя нужно на время
+ * работ, а не на сезон. Каждая перевыпущенная ссылка оставляла бы в браузере
+ * свою cookie на полгода, и через десяток ссылок их становится не счесть.
+ */
+export const GUEST_COOKIE_DAYS = 30;
+export const GUEST_COOKIE_MAX_AGE = 60 * 60 * 24 * GUEST_COOKIE_DAYS;
+
 /** Cookie своя у каждой ссылки: гость может держать открытыми две разные. */
 export function guestCookieName(token: string): string {
   return `${GUEST_COOKIE_PREFIX}${token}`;
