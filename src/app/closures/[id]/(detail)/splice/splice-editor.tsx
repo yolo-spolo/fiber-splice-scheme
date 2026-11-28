@@ -462,7 +462,7 @@ export function SpliceEditor({
                         onClick={() =>
                           start(async () => {
                             const res = await deleteSplice(s.id, shareToken);
-                            if (res?.error) setError(res.error);
+                            if ("error" in res) setError(res.error);
                           })
                         }
                       >

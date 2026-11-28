@@ -209,7 +209,7 @@ export function PhotoManager({
                   onClick={() =>
                     start(async () => {
                       const res = await savePhotoPins(active.id, draftPins, caption, shareToken);
-                      if (res?.error) {
+                      if ("error" in res) {
                         setError(res.error);
                         return;
                       }
@@ -227,7 +227,7 @@ export function PhotoManager({
                     if (!confirm("Удалить фото?")) return;
                     start(async () => {
                       const res = await deletePhoto(active.id, shareToken);
-                      if (res?.error) {
+                      if ("error" in res) {
                         setError(res.error);
                         return;
                       }

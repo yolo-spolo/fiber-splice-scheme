@@ -104,7 +104,7 @@ export function CassettePanel({
                     if (!confirm(`Удалить кассету ${c.number}?`)) return;
                     start(async () => {
                       const res = await deleteCassette(c.id, shareToken);
-                      if (res?.error) setError(res.error);
+                      if ("error" in res) setError(res.error);
                     });
                   }}
                 >

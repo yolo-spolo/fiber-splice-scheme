@@ -3,8 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { resolveEditor } from "@/lib/edit-access";
+import {
+  actorCanEditClosure,
+  EDIT_FORBIDDEN,
+  resolveActor,
+  resolveEditor,
+} from "@/lib/edit-access";
 import { logHistory } from "@/lib/history";
+import { editClosureRecord } from "./guard";
 
 const createSchema = z.object({
   closureId: z.string().min(1),
@@ -84,58 +90,62 @@ export async function createSplice(formData: FormData) {
 }
 
 export async function deleteSplice(id: string, shareToken?: string | null) {
-  const existing = await prisma.splice.findUnique({
-    where: { id },
-    include: {
-      fiberA: { include: { cable: true } },
-      fiberB: { include: { cable: true } },
+  return editClosureRecord({
+    shareToken,
+    notFound: "Сварка не найдена",
+    scope: async () => {
+      const row = await prisma.splice.findUnique({
+        where: { id },
+        include: {
+          fiberA: { include: { cable: true } },
+          fiberB: { include: { cable: true } },
+        },
+      });
+      return row ? { closureId: row.closureId, row } : null;
+    },
+    write: async (tx, existing) => {
+      const removed = await tx.splice.delete({ where: { id } });
+      // Волокна, у которых не осталось сварки, снова свободны — иначе они
+      // висят в статусе «сварено» без существующей сварки.
+      for (const fiberId of [removed.fiberAId, removed.fiberBId]) {
+        const remaining = await tx.splice.count({
+          where: { OR: [{ fiberAId: fiberId }, { fiberBId: fiberId }] },
+        });
+        if (remaining === 0) {
+          await tx.fiber.update({ where: { id: fiberId }, data: { status: "FREE" } });
+        }
+      }
+      return {
+        action: "spliceDelete",
+        summary: `${existing.fiberA.cable.label} М${existing.fiberA.moduleIndex} В${existing.fiberA.position} ↔ ${existing.fiberB.cable.label} М${existing.fiberB.moduleIndex} В${existing.fiberB.position}`,
+        targetId: removed.id,
+      };
     },
   });
-  if (!existing) return { error: "Сварка не найдена" };
-
-  const auth = await resolveEditor(shareToken, existing.closureId);
-  if ("error" in auth) return { error: auth.error };
-
-  const splice = await prisma.$transaction(async (tx) => {
-    const removed = await tx.splice.delete({ where: { id } });
-    for (const fiberId of [removed.fiberAId, removed.fiberBId]) {
-      const remaining = await tx.splice.count({
-        where: { OR: [{ fiberAId: fiberId }, { fiberBId: fiberId }] },
-      });
-      if (remaining === 0) {
-        await tx.fiber.update({ where: { id: fiberId }, data: { status: "FREE" } });
-      }
-    }
-    await logHistory(tx, auth.actor, removed.closureId, {
-      action: "spliceDelete",
-      summary: `${existing.fiberA.cable.label} М${existing.fiberA.moduleIndex} В${existing.fiberA.position} ↔ ${existing.fiberB.cable.label} М${existing.fiberB.moduleIndex} В${existing.fiberB.position}`,
-      targetId: removed.id,
-    });
-    return removed;
-  });
-  revalidatePath(`/closures/${splice.closureId}`);
-  return { ok: true };
 }
 
 export async function updateSpliceLoss(id: string, lossDb: number | null, shareToken?: string | null) {
-  const existing = await prisma.splice.findUnique({ where: { id }, select: { closureId: true, lossDb: true } });
-  if (!existing) return { error: "Сварка не найдена" };
-  const auth = await resolveEditor(shareToken, existing.closureId);
-  if ("error" in auth) return { error: auth.error };
-
-  const splice = await prisma.$transaction(async (tx) => {
-    const updated = await tx.splice.update({ where: { id }, data: { lossDb } });
-    await logHistory(tx, auth.actor, updated.closureId, {
-      action: "spliceLoss",
-      summary: `${existing.lossDb ?? "—"} → ${lossDb ?? "—"} дБ`,
-      before: { lossDb: existing.lossDb },
-      after: { lossDb },
-      targetId: id,
-    });
-    return updated;
+  return editClosureRecord({
+    shareToken,
+    notFound: "Сварка не найдена",
+    scope: async () => {
+      const row = await prisma.splice.findUnique({
+        where: { id },
+        select: { closureId: true, lossDb: true },
+      });
+      return row ? { closureId: row.closureId, row } : null;
+    },
+    write: async (tx, existing) => {
+      await tx.splice.update({ where: { id }, data: { lossDb } });
+      return {
+        action: "spliceLoss",
+        summary: `${existing.lossDb ?? "—"} → ${lossDb ?? "—"} дБ`,
+        before: { lossDb: existing.lossDb },
+        after: { lossDb },
+        targetId: id,
+      };
+    },
   });
-  revalidatePath(`/closures/${splice.closureId}`);
-  return { ok: true };
 }
 
 /**
@@ -221,6 +231,11 @@ export async function setFiberStatus(
   status: "FREE" | "TRANSIT" | "DAMAGED",
   shareToken?: string | null,
 ) {
+  // Порядок как в guard.ts: сначала «кто», потом чтение. Иначе проверка
+  // «волокно участвует в сварке» отвечает постороннему, существует ли жила.
+  const resolved = await resolveActor(shareToken);
+  if ("error" in resolved) return { error: resolved.error };
+
   if (status === "FREE") {
     const linked = await prisma.splice.count({
       where: { OR: [{ fiberAId: fiberId }, { fiberBId: fiberId }] },
@@ -233,10 +248,12 @@ export async function setFiberStatus(
     where: { id: fiberId },
     include: { cable: true },
   });
-  if (!current) return { error: "Волокно не найдено" };
-
-  const auth = await resolveEditor(shareToken, current.cable.closureId);
-  if ("error" in auth) return { error: auth.error };
+  if (!current) {
+    return { error: resolved.actor.kind === "owner" ? "Волокно не найдено" : EDIT_FORBIDDEN };
+  }
+  if (!(await actorCanEditClosure(resolved.actor, current.cable.closureId))) {
+    return { error: EDIT_FORBIDDEN };
+  }
 
   const fiber = await prisma.$transaction(async (tx) => {
     const updated = await tx.fiber.update({
@@ -244,7 +261,7 @@ export async function setFiberStatus(
       data: { status },
       include: { cable: true },
     });
-    await logHistory(tx, auth.actor, updated.cable.closureId, {
+    await logHistory(tx, resolved.actor, updated.cable.closureId, {
       action: "fiberStatus",
       summary: `${updated.cable.label} М${updated.moduleIndex} В${updated.position}: ${current.status} → ${status}`,
       before: { status: current.status },
@@ -265,14 +282,19 @@ export async function setFiberColor(fiberId: string, colorCode: number, shareTok
   if (!Number.isInteger(colorCode) || colorCode < 0 || colorCode > 23) {
     return { error: "Некорректный цвет" };
   }
+  const resolved = await resolveActor(shareToken);
+  if ("error" in resolved) return { error: resolved.error };
+
   const current = await prisma.fiber.findUnique({
     where: { id: fiberId },
     include: { cable: true },
   });
-  if (!current) return { error: "Волокно не найдено" };
-
-  const auth = await resolveEditor(shareToken, current.cable.closureId);
-  if ("error" in auth) return { error: auth.error };
+  if (!current) {
+    return { error: resolved.actor.kind === "owner" ? "Волокно не найдено" : EDIT_FORBIDDEN };
+  }
+  if (!(await actorCanEditClosure(resolved.actor, current.cable.closureId))) {
+    return { error: EDIT_FORBIDDEN };
+  }
 
   const fiber = await prisma.$transaction(async (tx) => {
     const updated = await tx.fiber.update({
@@ -280,7 +302,7 @@ export async function setFiberColor(fiberId: string, colorCode: number, shareTok
       data: { colorCode },
       include: { cable: true },
     });
-    await logHistory(tx, auth.actor, updated.cable.closureId, {
+    await logHistory(tx, resolved.actor, updated.cable.closureId, {
       action: "fiberColor",
       summary: `${updated.cable.label} М${updated.moduleIndex} В${updated.position}: ${current.colorCode} → ${colorCode}`,
       before: { colorCode: current.colorCode },
@@ -299,14 +321,19 @@ export async function setFiberColor(fiberId: string, colorCode: number, shareTok
  * чем по номеру модуля и позиции.
  */
 export async function setFiberLabel(fiberId: string, label: string, shareToken?: string | null) {
+  const resolved = await resolveActor(shareToken);
+  if ("error" in resolved) return { error: resolved.error };
+
   const current = await prisma.fiber.findUnique({
     where: { id: fiberId },
     include: { cable: true },
   });
-  if (!current) return { error: "Волокно не найдено" };
-
-  const auth = await resolveEditor(shareToken, current.cable.closureId);
-  if ("error" in auth) return { error: auth.error };
+  if (!current) {
+    return { error: resolved.actor.kind === "owner" ? "Волокно не найдено" : EDIT_FORBIDDEN };
+  }
+  if (!(await actorCanEditClosure(resolved.actor, current.cable.closureId))) {
+    return { error: EDIT_FORBIDDEN };
+  }
 
   const next = label.replace(/\s+/g, " ").trim().slice(0, 120) || null;
   if (next === current.label) return { ok: true, label: next };
@@ -317,7 +344,7 @@ export async function setFiberLabel(fiberId: string, label: string, shareToken?:
       data: { label: next },
       include: { cable: true },
     });
-    await logHistory(tx, auth.actor, updated.cable.closureId, {
+    await logHistory(tx, resolved.actor, updated.cable.closureId, {
       action: "fiberLabel",
       summary: `${updated.cable.label} М${updated.moduleIndex} В${updated.position}: ${current.label ?? "без подписи"} → ${next ?? "без подписи"}`,
       before: { label: current.label },

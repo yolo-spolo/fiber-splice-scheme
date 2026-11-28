@@ -11,7 +11,12 @@ import {
 } from "@/lib/cable-layout";
 import { isColorScheme } from "@/lib/colors";
 import { resolveCableEndpoint, type ClosureOption } from "@/lib/cable-endpoints";
-import { resolveEditor } from "@/lib/edit-access";
+import {
+  actorCanEditClosure,
+  EDIT_FORBIDDEN,
+  resolveActor,
+  resolveEditor,
+} from "@/lib/edit-access";
 import { logHistory } from "@/lib/history";
 
 /** Массив цветов из формы: JSON-строка или повторяющиеся поля. */
@@ -142,8 +147,12 @@ async function endpointsFor(
   return { from, to };
 }
 
-export async function createCable(formData: FormData, shareTokenArg?: string | null) {
-  const shareToken = shareTokenArg ?? (String(formData.get("shareToken") ?? "") || null);
+/**
+ * Токен приходит аргументом, а не из формы. Раньше он читался ещё и из
+ * `formData`, но этим путём никто не ходил — а два способа в одном действии
+ * приглашают забыть один из них.
+ */
+export async function createCable(formData: FormData, shareToken?: string | null) {
   const closureIdRaw = String(formData.get("closureId") ?? "");
   const auth = await resolveEditor(shareToken, closureIdRaw);
   if ("error" in auth) return { error: auth.error };
@@ -225,8 +234,12 @@ export async function createCable(formData: FormData, shareTokenArg?: string | n
   return { ok: true };
 }
 
-export async function updateCable(id: string, formData: FormData, shareTokenArg?: string | null) {
-  const shareToken = shareTokenArg ?? (String(formData.get("shareToken") ?? "") || null);
+export async function updateCable(id: string, formData: FormData, shareToken?: string | null) {
+  // Сначала «кто», потом чтение: иначе посторонний по ответу «кабель не
+  // найден» узнаёт, что кабель с таким id существует.
+  const resolved = await resolveActor(shareToken);
+  if ("error" in resolved) return { error: resolved.error };
+
   const parsed = z
     .object({
       label: z.string().trim().min(1).max(60),
@@ -260,9 +273,13 @@ export async function updateCable(id: string, formData: FormData, shareTokenArg?
       },
     },
   });
-  if (!cable) return { error: "Кабель не найден" };
-  const auth = await resolveEditor(shareToken, cable.closureId);
-  if ("error" in auth) return { error: auth.error };
+  if (!cable) {
+    return { error: resolved.actor.kind === "owner" ? "Кабель не найден" : EDIT_FORBIDDEN };
+  }
+  if (!(await actorCanEditClosure(resolved.actor, cable.closureId))) {
+    return { error: EDIT_FORBIDDEN };
+  }
+  const auth = { actor: resolved.actor };
 
   const beforeSnapshot = {
     label: cable.label,
@@ -456,14 +473,20 @@ export async function updateCable(id: string, formData: FormData, shareTokenArg?
 }
 
 export async function deleteCable(id: string, shareToken?: string | null) {
+  const resolved = await resolveActor(shareToken);
+  if ("error" in resolved) return { error: resolved.error };
+
   const cable = await prisma.cable.findUnique({
     where: { id },
     include: { fibers: { select: { id: true } } },
   });
-  if (!cable) return { error: "Кабель не найден" };
-
-  const auth = await resolveEditor(shareToken, cable.closureId);
-  if ("error" in auth) return { error: auth.error };
+  if (!cable) {
+    return { error: resolved.actor.kind === "owner" ? "Кабель не найден" : EDIT_FORBIDDEN };
+  }
+  if (!(await actorCanEditClosure(resolved.actor, cable.closureId))) {
+    return { error: EDIT_FORBIDDEN };
+  }
+  const auth = { actor: resolved.actor };
 
   const fiberIds = cable.fibers.map((fiber) => fiber.id);
 

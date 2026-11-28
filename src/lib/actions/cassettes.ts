@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { resolveEditor } from "@/lib/edit-access";
 import { logHistory } from "@/lib/history";
+import { editClosureRecord } from "./guard";
 
 export async function createCassette(formData: FormData) {
   const shareToken = String(formData.get("shareToken") ?? "") || null;
@@ -58,48 +59,48 @@ export async function updateCassette(
   label?: string,
   shareToken?: string | null,
 ) {
-  const current = await prisma.cassette.findUnique({ where: { id } });
-  if (!current) return { error: "Кассета не найдена" };
-  const auth = await resolveEditor(shareToken, current.closureId);
-  if ("error" in auth) return { error: auth.error };
-
   const nextLabel = label?.trim() || null;
-  const cassette = await prisma.$transaction(async (tx) => {
-    const updated = await tx.cassette.update({
-      where: { id },
-      data: { capacity, label: nextLabel },
-    });
-    await logHistory(tx, auth.actor, updated.closureId, {
-      action: "cassetteUpdate",
-      summary: `кассета ${updated.number}: ёмкость ${current.capacity} → ${capacity}${current.label !== nextLabel ? ", подпись изменена" : ""}`,
-      before: { capacity: current.capacity, label: current.label },
-      after: { capacity, label: nextLabel },
-      targetId: id,
-    });
-    return updated;
+  return editClosureRecord({
+    shareToken,
+    notFound: "Кассета не найдена",
+    scope: async () => {
+      const row = await prisma.cassette.findUnique({ where: { id } });
+      return row ? { closureId: row.closureId, row } : null;
+    },
+    write: async (tx, current) => {
+      const updated = await tx.cassette.update({
+        where: { id },
+        data: { capacity, label: nextLabel },
+      });
+      return {
+        action: "cassetteUpdate",
+        summary: `кассета ${updated.number}: ёмкость ${current.capacity} → ${capacity}${current.label !== nextLabel ? ", подпись изменена" : ""}`,
+        before: { capacity: current.capacity, label: current.label },
+        after: { capacity, label: nextLabel },
+        targetId: id,
+      };
+    },
   });
-  revalidatePath(`/closures/${cassette.closureId}`);
-  return { ok: true };
 }
 
 export async function deleteCassette(id: string, shareToken?: string | null) {
-  const current = await prisma.cassette.findUnique({
-    where: { id },
-    include: { _count: { select: { splices: true } } },
+  return editClosureRecord({
+    shareToken,
+    notFound: "Кассета не найдена",
+    scope: async () => {
+      const row = await prisma.cassette.findUnique({
+        where: { id },
+        include: { _count: { select: { splices: true } } },
+      });
+      return row ? { closureId: row.closureId, row } : null;
+    },
+    write: async (tx, current) => {
+      const removed = await tx.cassette.delete({ where: { id } });
+      return {
+        action: "cassetteDelete",
+        summary: `кассета ${removed.number} (${current._count.splices} сварок остались без кассеты)`,
+        targetId: id,
+      };
+    },
   });
-  if (!current) return { error: "Кассета не найдена" };
-  const auth = await resolveEditor(shareToken, current.closureId);
-  if ("error" in auth) return { error: auth.error };
-
-  const cassette = await prisma.$transaction(async (tx) => {
-    const removed = await tx.cassette.delete({ where: { id } });
-    await logHistory(tx, auth.actor, removed.closureId, {
-      action: "cassetteDelete",
-      summary: `кассета ${removed.number} (${current._count.splices} сварок остались без кассеты)`,
-      targetId: id,
-    });
-    return removed;
-  });
-  revalidatePath(`/closures/${cassette.closureId}`);
-  return { ok: true };
 }

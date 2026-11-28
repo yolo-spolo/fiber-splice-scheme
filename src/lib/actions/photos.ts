@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { removeImage, saveImage } from "@/lib/storage";
 import { resolveEditor } from "@/lib/edit-access";
 import { logHistory } from "@/lib/history";
+import { editClosureRecord } from "./guard";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 
@@ -53,24 +54,33 @@ export async function uploadPhoto(formData: FormData) {
 }
 
 export async function deletePhoto(id: string, shareToken?: string | null) {
-  const current = await prisma.photo.findUnique({ where: { id } });
-  if (!current) return { error: "Фото не найдено" };
-  const auth = await resolveEditor(shareToken, current.closureId);
-  if ("error" in auth) return { error: auth.error };
-
-  const photo = await prisma.$transaction(async (tx) => {
-    const removed = await tx.photo.delete({ where: { id } });
-    await logHistory(tx, auth.actor, removed.closureId, {
-      action: "photoDelete",
-      summary: removed.caption ?? "фото муфты",
-      targetId: id,
-    });
-    return removed;
+  const removedFiles: { file: string; thumb: string }[] = [];
+  const result = await editClosureRecord({
+    shareToken,
+    notFound: "Фото не найдено",
+    scope: async () => {
+      const row = await prisma.photo.findUnique({ where: { id } });
+      return row ? { closureId: row.closureId, row } : null;
+    },
+    write: async (tx, current) => {
+      const removed = await tx.photo.delete({ where: { id } });
+      removedFiles.push({ file: removed.file, thumb: removed.thumb });
+      return {
+        action: "photoDelete",
+        summary: removed.caption ?? "фото муфты",
+        targetId: id,
+      };
+    },
   });
-  await removeImage(photo.file);
-  await removeImage(photo.thumb);
-  revalidatePath(`/closures/${photo.closureId}`);
-  return { ok: true };
+  // Файлы удаляем только после успешной транзакции: если она упала,
+  // запись в базе осталась бы со ссылкой на несуществующий файл.
+  if ("ok" in result) {
+    for (const files of removedFiles) {
+      await removeImage(files.file);
+      await removeImage(files.thumb);
+    }
+  }
+  return result;
 }
 
 export type Pin = {
@@ -87,32 +97,32 @@ export async function savePhotoPins(
   caption?: string,
   shareToken?: string | null,
 ) {
-  const current = await prisma.photo.findUnique({
-    where: { id },
-    select: { closureId: true, caption: true, pins: true },
-  });
-  if (!current) return { error: "Фото не найдено" };
-  const auth = await resolveEditor(shareToken, current.closureId);
-  if ("error" in auth) return { error: auth.error };
-
   const nextCaption = caption !== undefined ? caption.trim() || null : undefined;
-  const photo = await prisma.$transaction(async (tx) => {
-    const updated = await tx.photo.update({
-      where: { id },
-      data: {
-        pins,
-        ...(nextCaption !== undefined ? { caption: nextCaption } : {}),
-      },
-    });
-    await logHistory(tx, auth.actor, updated.closureId, {
-      action: "photoPins",
-      summary: `меток: ${(current.pins as unknown[]).length} → ${pins.length}${nextCaption !== undefined && nextCaption !== current.caption ? ", подпись изменена" : ""}`,
-      before: { pins: (current.pins as object) ?? [], caption: current.caption },
-      after: { pins: pins as unknown as object, caption: nextCaption ?? current.caption },
-      targetId: id,
-    });
-    return updated;
+  return editClosureRecord({
+    shareToken,
+    notFound: "Фото не найдено",
+    scope: async () => {
+      const row = await prisma.photo.findUnique({
+        where: { id },
+        select: { closureId: true, caption: true, pins: true },
+      });
+      return row ? { closureId: row.closureId, row } : null;
+    },
+    write: async (tx, current) => {
+      await tx.photo.update({
+        where: { id },
+        data: {
+          pins,
+          ...(nextCaption !== undefined ? { caption: nextCaption } : {}),
+        },
+      });
+      return {
+        action: "photoPins",
+        summary: `меток: ${(current.pins as unknown[]).length} → ${pins.length}${nextCaption !== undefined && nextCaption !== current.caption ? ", подпись изменена" : ""}`,
+        before: { pins: (current.pins as object) ?? [], caption: current.caption },
+        after: { pins: pins as unknown as object, caption: nextCaption ?? current.caption },
+        targetId: id,
+      };
+    },
   });
-  revalidatePath(`/closures/${photo.closureId}`);
-  return { ok: true };
 }
