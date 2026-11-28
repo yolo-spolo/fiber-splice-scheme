@@ -1,4 +1,5 @@
 import { ForgetGuestName } from "./forget-guest-name";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 /** Общая плашка для всех состояний, в которых ссылка не работает. */
 export function ShareUnavailable({
@@ -20,6 +21,7 @@ export function ShareUnavailable({
 
   return (
     <div className="grid min-h-dvh place-items-center px-4">
+      <div className="fixed right-4 top-4"><ThemeToggle /></div>
       {/* «Нет доступа» к чужой муфте — не повод забывать имя: сама ссылка жива. */}
       {token && status !== "forbidden" && <ForgetGuestName token={token} />}
       <div className="card max-w-[420px] p-6 text-center">

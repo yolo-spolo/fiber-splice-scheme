@@ -15,7 +15,7 @@
 4. `npm run lint` — ESLint, конфиг `eslint.config.mjs`;
 5. `npm run build`.
 
-### `e2e` — все десять сценариев
+### `e2e` — все одиннадцать сценариев
 
 `needs: check`, то есть запускается только если базовые проверки прошли.
 Postgres-сервис, `prisma db push`, production-сборка, `next start` на
@@ -27,7 +27,7 @@ Postgres-сервис, `prisma db push`, production-сборка, `next start` �
 1. `cold-start` — на пустой базе, проходит мастер первого запуска;
 2. `npm run db:seed` — данные для остальных;
 3. `flow`, `share`, `coordinates`, `copy-link`, `share-scope`, `guest-edit`,
-   `fiber-label`, `pdf-coordinates`, `trace`.
+   `fiber-label`, `pdf-coordinates`, `trace`, `mobile-ui`.
 
 Сценарии идут последовательно: у них одна база, и каждый следующий видит
 работу предыдущего. Параллелить нельзя.

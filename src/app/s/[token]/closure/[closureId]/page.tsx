@@ -14,6 +14,7 @@ import { toHistoryItem } from "@/lib/history-labels";
 import { closureTitle } from "@/lib/address";
 import { ShareUnavailable } from "../../share-unavailable";
 import { GuestNameForm } from "../../name-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -55,8 +56,9 @@ export default async function SharedClosurePage({
   // потом показываем редактор. Так в истории не появляется «кто-то».
   if (canEdit && !guestName) {
     return (
-      <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+      <div className="min-h-dvh bg-[var(--color-canvas)]">
         <div className="mx-auto max-w-[460px] px-4 py-10">
+          <div className="mb-3 flex justify-end"><ThemeToggle /></div>
           <div className="card p-5">
             <h1 className="text-[18px]">Представьтесь</h1>
             <p className="mt-1 mb-3 text-[12.5px] text-[var(--color-ink-500)]">
@@ -90,7 +92,7 @@ export default async function SharedClosurePage({
     ]);
 
     return (
-      <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+      <div className="min-h-dvh bg-[var(--color-canvas)]">
         <div className="no-print border-b border-[var(--color-line)] bg-[var(--color-paper)]">
           <div className="mx-auto flex max-w-[900px] flex-wrap items-center gap-2 px-4 py-2.5">
             <div className="min-w-0">
@@ -100,6 +102,7 @@ export default async function SharedClosurePage({
               </div>
             </div>
             <div className="ml-auto flex items-center gap-2">
+              <ThemeToggle />
               {link.projectId && (
                 <Link href={`/s/${token}`} className="btn btn-ghost px-2.5 py-1.5 text-[13px]">
                   ← Муфты объекта
@@ -130,7 +133,7 @@ export default async function SharedClosurePage({
   }
 
   return (
-    <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+    <div className="min-h-dvh bg-[var(--color-canvas)]">
       <div className="no-print border-b border-[var(--color-line)] bg-[var(--color-paper)]">
         <div className="mx-auto flex max-w-[900px] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0">
@@ -140,6 +143,7 @@ export default async function SharedClosurePage({
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             {/* Назад к списку — только если ссылка на объект: с муфты списка нет. */}
             {link.projectId && (
               <Link href={`/s/${token}`} className="btn btn-ghost px-2.5 py-1.5 text-[13px]">

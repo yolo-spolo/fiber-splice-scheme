@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
+  initialMode,
+  isGuestPath,
   isThemeMode,
   resolveTheme,
   THEME_STORAGE_KEY,
@@ -30,23 +32,31 @@ function apply(mode: ThemeMode, prefersDark: boolean): ResolvedTheme {
   return resolved;
 }
 
-function prefersDark() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Начальное значение совпадает с тем, что уже поставил inline-скрипт.
+  // Начальное значение постоянное: так серверный и клиентский рендер совпадают.
   const [mode, setModeState] = useState<ThemeMode>("system");
   const [resolved, setResolved] = useState<ResolvedTheme>("light");
 
+  // Тему до первой отрисовки уже поставил inline-скрипт — здесь только
+  // повторяем его решение. Своё не применяем: состояние ещё «system», и на
+  // гостевой странице это вернуло бы тему ОС, то есть тёмную. Читаем DOM,
+  // а не хранилище, чтобы не расходиться со скриптом; повторный вызов в
+  // Strict Mode идемпотентен.
   useEffect(() => {
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    setModeState(isThemeMode(stored) ? stored : "system");
+    const root = document.documentElement;
+    const fromScript = root.dataset.themeMode;
+    setModeState(
+      isThemeMode(fromScript)
+        ? fromScript
+        : initialMode(
+            localStorage.getItem(THEME_STORAGE_KEY),
+            isGuestPath(window.location.pathname),
+          ),
+    );
+    setResolved(root.dataset.theme === "dark" ? "dark" : "light");
   }, []);
 
   useEffect(() => {
-    setResolved(apply(mode, prefersDark()));
-
     // В режиме «как в системе» следим за сменой настроек ОС.
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {
@@ -59,6 +69,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setMode = useCallback((next: ThemeMode) => {
     localStorage.setItem(THEME_STORAGE_KEY, next);
     setModeState(next);
+    setResolved(apply(next, window.matchMedia("(prefers-color-scheme: dark)").matches));
   }, []);
 
   const value = useMemo(() => ({ mode, resolved, setMode }), [mode, resolved, setMode]);

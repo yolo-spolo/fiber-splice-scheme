@@ -8,6 +8,7 @@ import { shareCanEdit } from "@/lib/share-access";
 import { closureTitle } from "@/lib/address";
 import { HistoryList } from "@/components/history-list";
 import { ShareUnavailable } from "../../../share-unavailable";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function SharedClosureHistoryPage({
   const events = await closureHistory(closure.id, 200);
 
   return (
-    <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+    <div className="min-h-dvh bg-[var(--color-canvas)]">
       <div className="no-print border-b border-[var(--color-line)] bg-[var(--color-paper)]">
         <div className="mx-auto flex max-w-[900px] flex-wrap items-center gap-2 px-4 py-2.5">
           <div className="min-w-0">
@@ -47,6 +48,7 @@ export default async function SharedClosureHistoryPage({
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href={`/s/${token}/closure/${closure.id}`}
               className="btn btn-ghost px-2.5 py-1.5 text-[13px]"

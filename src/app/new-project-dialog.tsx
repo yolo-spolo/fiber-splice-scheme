@@ -26,7 +26,7 @@ export function NewProjectDialog({ trigger = "Новый объект" }: { trig
 
       {open && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] p-0 sm:items-center sm:p-4">
-          <div className="w-full max-w-[520px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
+          <div className="modal-panel w-full max-w-[520px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-[18px]">Новый объект</h2>
