@@ -34,7 +34,7 @@ export function NewClosureDialog({
 
       {open && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] sm:items-center sm:p-4">
-          <div className="w-full max-w-[540px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
+          <div className="modal-panel w-full max-w-[540px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
             <div className="mb-4 flex items-start justify-between gap-3">
               <h2 className="text-[18px]">Новая муфта</h2>
               <button

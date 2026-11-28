@@ -200,7 +200,7 @@ export function CableCard({
           aria-modal="true"
         className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] sm:items-center sm:p-4"
         >
-          <div className="w-full max-w-[420px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
+          <div className="modal-panel w-full max-w-[420px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-[16px]">

@@ -9,6 +9,7 @@ import { SpliceDocument } from "@/components/document";
 import { PrintButton } from "@/components/print-button";
 import { closureKindLabel, closureTitle } from "@/lib/address";
 import { ShareUnavailable } from "./share-unavailable";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -56,8 +57,9 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
       : [];
 
     return (
-      <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+      <div className="min-h-dvh bg-[var(--color-canvas)]">
         <div className="mx-auto max-w-[820px] px-4 py-8">
+          <div className="mb-3 flex justify-end"><ThemeToggle /></div>
           <h1 className="text-[22px] leading-tight">{link.project?.name ?? "Объект"}</h1>
           <p className="mt-1 text-[13px] text-[var(--color-ink-500)]">
             {[link.project?.customer, link.project?.address].filter(Boolean).join(" · ")}
@@ -99,7 +101,7 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
 
   // Публичная схема для заказчика — всегда светлая, независимо от темы исполнителя.
   return (
-    <div data-theme="light" className="min-h-dvh bg-[var(--color-canvas)]">
+    <div className="min-h-dvh bg-[var(--color-canvas)]">
       <div className="no-print border-b border-[var(--color-line)] bg-[var(--color-paper)]">
         <div className="mx-auto flex max-w-[900px] items-center gap-3 px-4 py-2.5">
           <div className="min-w-0">
@@ -108,7 +110,8 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
               Схема сварок · {link.mode === "EDIT" ? "с правом правки" : "только просмотр"}
             </div>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             <PrintButton label="Скачать PDF" />
           </div>
         </div>

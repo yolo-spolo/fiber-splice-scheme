@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isThemeMode, resolveTheme } from "./theme";
+import { initialMode, isGuestPath, isThemeMode, resolveTheme } from "./theme";
 
 describe("resolveTheme", () => {
   it("явные режимы не зависят от системы", () => {
@@ -24,5 +24,40 @@ describe("isThemeMode", () => {
     expect(isThemeMode(null)).toBe(false);
     expect(isThemeMode("DARK")).toBe(false);
     expect(isThemeMode(42)).toBe(false);
+  });
+});
+
+describe("initialMode", () => {
+  it("гость в новом браузере видит светлую тему", () => {
+    expect(initialMode(null, true)).toBe("light");
+  });
+
+  it("исполнитель по умолчанию следует системе", () => {
+    expect(initialMode(null, false)).toBe("system");
+  });
+
+  it("выбор гостя важнее умолчания", () => {
+    expect(initialMode("dark", true)).toBe("dark");
+    expect(initialMode("system", true)).toBe("system");
+  });
+
+  it("мусор в хранилище не ломает старт", () => {
+    expect(initialMode("", true)).toBe("light");
+    expect(initialMode("DARK", false)).toBe("system");
+  });
+});
+
+describe("isGuestPath", () => {
+  it("ссылки заказчика живут под /s/", () => {
+    expect(isGuestPath("/s/abc")).toBe(true);
+    expect(isGuestPath("/s/abc/closure/cm1")).toBe(true);
+    expect(isGuestPath("/s")).toBe(true);
+  });
+
+  it("интерфейс исполнителя — не гостевая страница", () => {
+    expect(isGuestPath("/")).toBe(false);
+    expect(isGuestPath("/closures/cm1")).toBe(false);
+    expect(isGuestPath("/settings")).toBe(false);
+    expect(isGuestPath("/sitemap")).toBe(false);
   });
 });

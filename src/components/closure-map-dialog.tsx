@@ -51,7 +51,7 @@ export function ClosureMapButton({
           aria-modal="true"
           className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] sm:items-center sm:p-4"
         >
-          <div className="max-h-[92dvh] w-full max-w-[620px] overflow-y-auto rounded-t-2xl bg-[var(--color-paper)] p-4 shadow-xl sm:rounded-2xl">
+          <div className="modal-panel w-full max-w-[620px] rounded-t-2xl bg-[var(--color-paper)] p-4 shadow-xl sm:rounded-2xl">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="break-words text-[16px] leading-snug">{title}</h2>

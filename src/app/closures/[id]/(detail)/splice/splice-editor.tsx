@@ -508,7 +508,7 @@ export function SpliceEditor({
 
       {straightOpen && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--color-overlay)] sm:items-center sm:p-4">
-          <div className="w-full max-w-[480px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
+          <div className="modal-panel w-full max-w-[480px] rounded-t-2xl bg-[var(--color-paper)] p-5 shadow-xl sm:rounded-2xl">
             <h2 className="text-[18px]">Прямая сварка</h2>
             <p className="mt-1 mb-4 text-[12.5px] text-[var(--color-ink-500)]">
               Сопоставит свободные волокна двух кабелей по порядку (1-е с 1-м, 2-е со 2-м). Уже
