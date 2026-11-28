@@ -54,3 +54,35 @@ export function actorLabel(event: { actorKind: string; actorName: string }): str
 export function actionLabel(action: string): string {
   return (HISTORY_ACTIONS as Record<string, string>)[action] ?? action;
 }
+
+/** Запись истории в виде, который рисует список: общий для владельца и гостя. */
+export type HistoryViewItem = {
+  id: string;
+  actorKind: string;
+  actorName: string;
+  action: string;
+  actionLabel: string;
+  summary: string;
+  createdAt: string;
+  restorable: boolean;
+};
+
+export function toHistoryItem(event: {
+  id: string;
+  actorKind: string;
+  actorName: string;
+  action: string;
+  summary: string;
+  createdAt: Date;
+}): HistoryViewItem {
+  return {
+    id: event.id,
+    actorKind: event.actorKind,
+    actorName: event.actorName,
+    action: event.action,
+    actionLabel: actionLabel(event.action),
+    summary: event.summary,
+    createdAt: event.createdAt.toISOString(),
+    restorable: Boolean(RESTORABLE[event.action as HistoryAction]),
+  };
+}

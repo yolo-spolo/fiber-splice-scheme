@@ -4,7 +4,8 @@
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 
-const BASE = process.env.E2E_BASE ?? "http://127.0.0.1:3100";
+// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
+const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
 const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
 
 const browser = await chromium.launch();
@@ -111,6 +112,21 @@ check("в истории есть гость", guestSeen, historyText.slice(0, 2
 check("в истории есть правка заметок", historyText.includes("заметки"), historyText.slice(0, 300));
 await g.screenshot({ path: "/tmp/opencode/guest-history.png", fullPage: false });
 
+// 3b. «Вся история» гостя: страница открывается, возврата на ней нет.
+await g.getByRole("link", { name: "Вся история" }).click();
+const fullHistory = await g
+  .locator("text=История изменений: кто и что менял")
+  .waitFor({ timeout: 30_000 })
+  .then(() => true)
+  .catch(() => false);
+check("ссылка «Вся история» открывает страницу", fullHistory, g.url());
+check("на гостевой истории нет возврата", (await g.getByRole("button", { name: "Вернуть" }).count()) === 0);
+check(
+  "гостевая история видит правки гостя",
+  (await g.locator("text=Сергей Монтажник (по ссылке)").count()) > 0,
+);
+await g.screenshot({ path: "/tmp/opencode/guest-full-history.png", fullPage: false });
+
 // 4. Ссылка «только чтение» редактора не даёт.
 const viewer = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const v = await viewer.newPage();
@@ -130,7 +146,8 @@ const restore = owner.getByRole("button", { name: "Вернуть" }).first();
 check("есть кнопка возврата", (await restore.count()) > 0);
 await restore.click();
 const restored = await owner
-  .locator("text=/возврат:/")
+  // Запись возврата начинается со слова «возврат», дальше — тире и действие.
+  .locator("text=/возврат/")
   .first()
   .waitFor({ timeout: 30_000 })
   .then(() => true)

@@ -5,7 +5,8 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
+const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
 const PASSWORD = process.env.AUTH_PASSWORD;
 const OUT = process.env.SHOTS_DIR ?? "e2e/screenshots";
 if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — пароль, которым вы входите в приложение");

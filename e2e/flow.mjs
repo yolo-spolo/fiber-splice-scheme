@@ -2,7 +2,9 @@ import { chromium } from "playwright";
 import { signIn } from "./sign-in.mjs";
 import { mkdir } from "node:fs/promises";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
+// 3000 на рабочем сервере занят чужим процессом, поэтому по умолчанию 3100.
+const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
 const PASSWORD = process.env.AUTH_PASSWORD;
 const OUT = process.env.SHOTS_DIR ?? "e2e/screenshots";
 if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — пароль, которым вы входите в приложение");

@@ -4,7 +4,8 @@
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 
-const BASE = process.env.E2E_BASE ?? "http://127.0.0.1:3100";
+// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
+const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
 const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
 
 const browser = await chromium.launch();
@@ -132,6 +133,20 @@ check(
 const ownClosure = await guest.goto(`${BASE}/s/${closureToken}/closure/${firstClosureId}`);
 check("своя муфта по ссылке на муфту открыта", ownClosure.status() === 200);
 check("и показывает документ", (await guest.locator("article.document").count()) > 0);
+
+// История по ссылке: открывается только для муфт этой ссылки.
+const ownHistory = await guest.goto(`${BASE}/s/${closureToken}/closure/${firstClosureId}/history`);
+check("история своей муфты открыта", ownHistory.status() === 200);
+check(
+  "история без кнопок возврата",
+  (await guest.getByRole("button", { name: "Вернуть" }).count()) === 0,
+);
+const foreignHistory = await guest.goto(`${BASE}/s/${closureToken}/closure/${otherClosureId}/history`);
+check("история чужой муфты закрыта", foreignHistory.status() === 200);
+check(
+  "и объясняет почему",
+  (await guest.locator("text=не открывает выбранную муфту").count()) > 0,
+);
 
 // Файлы: по ссылке на объект доступны фото любой его муфты, чужой объект — нет.
 const projectToken = projectUrl.split("/s/")[1];

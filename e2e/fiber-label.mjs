@@ -4,7 +4,8 @@ import { chromium } from "playwright";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
-const BASE = process.env.E2E_BASE ?? "http://127.0.0.1:3100";
+// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
+const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
 const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
 const LABEL = "Абонент: кв. 42, Петров";
 

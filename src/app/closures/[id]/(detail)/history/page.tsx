@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { loadClosure } from "@/lib/closure-data";
-import { closureHistory, RESTORABLE } from "@/lib/history";
-import { actionLabel, actorLabel } from "@/lib/history-labels";
-import { HistoryList } from "./history-list";
+import { closureHistory } from "@/lib/history";
+import { toHistoryItem } from "@/lib/history-labels";
+import { HistoryList } from "@/components/history-list";
 
 export const dynamic = "force-dynamic";
 
@@ -14,18 +14,14 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   const events = await closureHistory(closure.id, 200);
 
   return (
-    <HistoryList
-      closureId={closure.id}
-      events={events.map((event) => ({
-        id: event.id,
-        actorKind: event.actorKind,
-        actorName: event.actorName,
-        action: event.action,
-        actionLabel: actionLabel(event.action),
-        summary: event.summary,
-        createdAt: event.createdAt.toISOString(),
-        restorable: Boolean(RESTORABLE[event.action as keyof typeof RESTORABLE]),
-      }))}
-    />
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-[16px]">История изменений</h2>
+        <p className="mt-0.5 text-[12.5px] text-[var(--color-ink-500)]">
+          Кто и что менял в муфте: владелец или гость по ссылке с правом правки.
+        </p>
+      </div>
+      <HistoryList events={events.map(toHistoryItem)} canRestore />
+    </div>
   );
 }

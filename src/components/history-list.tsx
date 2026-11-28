@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { restoreEvent } from "@/lib/actions/history";
 import { actorLabel } from "@/lib/history-labels";
 
-type EventItem = {
+export type HistoryItem = {
   id: string;
   actorKind: string;
   actorName: string;
@@ -16,22 +16,24 @@ type EventItem = {
 };
 
 /**
- * История изменений муфты. Свежие сверху; возврат доступен только для тех
- * изменений, где сохранён снимок поля (см. RESTORABLE на сервере).
+ * Список изменений муфты: свежие сверху. Общий для владельца и гостя —
+ * разница только в кнопке «Вернуть», которую гость не видит (и не получит:
+ * restoreEvent на сервере проверяет сессию владельца).
  */
-export function HistoryList({ events }: { closureId: string; events: EventItem[] }) {
+export function HistoryList({
+  events,
+  canRestore = false,
+  emptyText = "Изменений пока нет. Они появятся, как только вы поправите кабель, сварку или параметры муфты.",
+}: {
+  events: HistoryItem[];
+  canRestore?: boolean;
+  emptyText?: string;
+}) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-[16px]">История изменений</h2>
-        <p className="mt-0.5 text-[12.5px] text-[var(--color-ink-500)]">
-          Кто и что менял в муфте: владелец или гость по ссылке с правом правки.
-        </p>
-      </div>
-
       {error && (
         <p className="rounded-lg bg-[var(--color-danger-soft)] px-3 py-2 text-[12.5px] text-[var(--color-danger)]">
           {error}
@@ -40,8 +42,7 @@ export function HistoryList({ events }: { closureId: string; events: EventItem[]
 
       {events.length === 0 ? (
         <p className="card px-4 py-8 text-center text-[13px] text-[var(--color-ink-500)]">
-          Изменений пока нет. Они появятся, как только вы поправите кабель, сварку или параметры
-          муфты.
+          {emptyText}
         </p>
       ) : (
         <ul className="card divide-y divide-[var(--color-line)] overflow-hidden">
@@ -69,7 +70,7 @@ export function HistoryList({ events }: { closureId: string; events: EventItem[]
                   timeStyle: "short",
                 })}
               </span>
-              {event.restorable && (
+              {canRestore && event.restorable && (
                 <button
                   type="button"
                   className="btn btn-ghost px-2 py-0.5 text-[11.5px]"
