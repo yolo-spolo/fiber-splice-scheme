@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { loadClosure } from "@/lib/closure-data";
 import { SharePanel } from "@/components/share-panel";
+import { shareBaseUrl } from "@/lib/base-url";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +16,11 @@ export default async function SharePage({ params }: { params: Promise<{ id: stri
     orderBy: { createdAt: "desc" },
   });
 
-  const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-
   return (
     <SharePanel
       projectId={closure.projectId}
       closureId={closure.id}
-      baseUrl={baseUrl}
+      baseUrl={shareBaseUrl()}
       links={links.map((l) => ({
         id: l.id,
         token: l.token,

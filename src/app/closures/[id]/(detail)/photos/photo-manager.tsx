@@ -3,15 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { deletePhoto, savePhotoPins, uploadPhoto, type Pin } from "@/lib/actions/photos";
 import { useShareToken } from "@/components/edit-scope";
-
-type PhotoItem = {
-  id: string;
-  file: string;
-  thumb: string;
-  caption: string | null;
-  cassetteId: string | null;
-  pins: { x: number; y: number; refType: string; refId: string; label: string }[];
-};
+import type { EditorCassette, EditorPhoto } from "@/lib/editor-data";
 
 export function PhotoManager({
   closureId,
@@ -19,13 +11,13 @@ export function PhotoManager({
   photos,
 }: {
   closureId: string;
-  cassettes: { id: string; number: number; label: string | null }[];
-  photos: PhotoItem[];
+  cassettes: EditorCassette[];
+  photos: EditorPhoto[];
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [active, setActive] = useState<PhotoItem | null>(null);
+  const [active, setActive] = useState<EditorPhoto | null>(null);
   const [pinMode, setPinMode] = useState(false);
   const [draftPins, setDraftPins] = useState<Pin[]>([]);
   const [pinTarget, setPinTarget] = useState(cassettes[0]?.id ?? "");
@@ -52,7 +44,7 @@ export function PhotoManager({
     if (fileRef.current) fileRef.current.value = "";
   }
 
-  function openPhoto(photo: PhotoItem) {
+  function openPhoto(photo: EditorPhoto) {
     setActive(photo);
     setDraftPins(photo.pins as Pin[]);
     setCaption(photo.caption ?? "");

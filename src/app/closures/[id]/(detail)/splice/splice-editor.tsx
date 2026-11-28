@@ -9,37 +9,7 @@ import { SpliceScheme } from "@/components/splice-scheme";
 import { FiberColorPicker } from "@/components/fiber-color-picker";
 import { useShareToken } from "@/components/edit-scope";
 import { setFiberLabel } from "@/lib/actions/splices";
-
-type EditorFiber = {
-  id: string;
-  moduleIndex: number;
-  position: number;
-  colorCode: number;
-  label?: string | null;
-  status: "FREE" | "SPLICED" | "TRANSIT" | "DAMAGED";
-};
-
-type EditorCable = {
-  id: string;
-  label: string;
-  type: string | null;
-  ownership: "OURS" | "FOREIGN";
-  moduleCount: number;
-  colorScheme: string;
-  moduleColors: number[];
-  fibers: EditorFiber[];
-};
-
-type EditorCassette = { id: string; number: number; capacity: number; label: string | null };
-
-type EditorSplice = {
-  id: string;
-  fiberAId: string;
-  fiberBId: string;
-  cassetteId: string | null;
-  kind: string;
-  lossDb: number | null;
-};
+import type { EditorCable, EditorCassette, EditorFiber, EditorSplice } from "@/lib/editor-data";
 
 type FiberRef = { cableLabel: string; moduleIndex: number; position: number; colorCode: number };
 

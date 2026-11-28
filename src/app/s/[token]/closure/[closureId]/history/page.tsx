@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { loadClosure } from "@/lib/closure-data";
 import { closureHistory } from "@/lib/history";
 import { toHistoryItem } from "@/lib/history-labels";
-import { resolveShareToken, shareAllowsClosure } from "@/lib/share";
+import { loadSharedClosure, resolveShareToken } from "@/lib/share";
 import { shareCanEdit } from "@/lib/share-access";
 import { closureTitle } from "@/lib/address";
 import { HistoryList } from "@/components/history-list";
@@ -28,12 +27,13 @@ export default async function SharedClosureHistoryPage({
   const { token, closureId } = await params;
   const resolved = await resolveShareToken(token);
   if (resolved.status !== "ok") return <ShareUnavailable status={resolved.status} />;
-  if (!shareAllowsClosure(resolved.link, closureId)) {
-    return <ShareUnavailable status="forbidden" />;
-  }
 
-  const closure = await loadClosure(closureId);
-  if (!closure) notFound();
+  // С объектом муфты: иначе ссылка на объект открывала бы историю любой
+  // муфты в базе.
+  const loaded = await loadSharedClosure(resolved.link, closureId);
+  if (loaded.status === "notfound") notFound();
+  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" />;
+  const { closure } = loaded;
   const events = await closureHistory(closure.id, 200);
 
   return (

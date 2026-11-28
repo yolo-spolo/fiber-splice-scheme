@@ -7,6 +7,8 @@ import { PrintButton } from "@/components/print-button";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { closureHistory } from "@/lib/history";
+import { shareLinkUrl } from "@/lib/base-url";
+import { toHistoryItem } from "@/lib/history-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +23,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
     orderBy: { createdAt: "desc" },
   });
 
-  const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const shareUrl = active ? `${baseUrl}/s/${active.token}` : undefined;
+  const shareUrl = active ? shareLinkUrl(active.token) : undefined;
   const qrDataUrl = shareUrl ? await QRCode.toDataURL(shareUrl, { margin: 0, width: 220 }) : undefined;
   const history = await closureHistory(closure.id, 5);
 
@@ -48,13 +49,7 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
             closure={closure}
             qrDataUrl={qrDataUrl}
             shareUrl={shareUrl}
-            history={history.map((event) => ({
-              id: event.id,
-              actorKind: event.actorKind,
-              actorName: event.actorName,
-              summary: event.summary,
-              createdAt: event.createdAt.toISOString(),
-            }))}
+            history={history.map(toHistoryItem)}
           />
         </div>
       </div>

@@ -10,6 +10,20 @@ export type CablePresetInput = CableTemplatePreset;
 /** Встроенные типы кабеля — 7 раскладок × 2 стандарта цветовки. */
 export const DEFAULT_CABLE_TYPES: CablePresetInput[] = cableTemplatePresets();
 
+/** Тип кабеля в том виде, в каком его ждут диалоги создания и правки. */
+export type CableTypeOption = {
+  id: string;
+  name: string;
+  fiberCount: number;
+  moduleCount: number;
+  colorScheme: string;
+  colorOrder: number[];
+  moduleColors: number[];
+  ownership: string;
+  sheathColor: string | null;
+  note: string | null;
+};
+
 /**
  * Создаёт встроенные типы при первом запуске — когда справочник пуст.
  *
@@ -27,5 +41,29 @@ export async function ensureCableTypeDefaults(): Promise<void> {
       order: index,
     })),
     skipDuplicates: true,
+  });
+}
+
+/**
+ * Справочник типов для диалогов кабеля. Одна функция на все страницы:
+ * раньше одинаковый `select` из десяти полей был написан дважды, и новое
+ * поле пришлось бы добавлять в оба.
+ */
+export async function loadCableTypes(): Promise<CableTypeOption[]> {
+  await ensureCableTypeDefaults();
+  return prisma.cableTypePreset.findMany({
+    orderBy: [{ order: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      fiberCount: true,
+      moduleCount: true,
+      colorScheme: true,
+      colorOrder: true,
+      moduleColors: true,
+      ownership: true,
+      sheathColor: true,
+      note: true,
+    },
   });
 }

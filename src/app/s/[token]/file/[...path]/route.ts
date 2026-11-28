@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import { resolveShareToken, type ResolvedShare } from "@/lib/share";
+import { resolveShareToken, shareAllowsClosureId, type ResolvedShare } from "@/lib/share";
 import { prisma } from "@/lib/prisma";
 import { safeUploadPath } from "@/lib/storage";
 
@@ -56,11 +56,7 @@ async function allowedClosureId(
 ): Promise<string | null> {
   const [closureId] = relative.split("/");
   if (!closureId) return null;
-  if (link.closureId) return link.closureId === closureId ? closureId : null;
-  if (!link.projectId) return null;
-  const closure = await prisma.closure.findUnique({
-    where: { id: closureId },
-    select: { projectId: true },
-  });
-  return closure?.projectId === link.projectId ? closureId : null;
+  // Та же проверка, что у страниц: объект муфты против объекта ссылки.
+  // Своя копия здесь уже расходилась с ними — фото закрывались, а схемы нет.
+  return (await shareAllowsClosureId(link, closureId)) ? closureId : null;
 }

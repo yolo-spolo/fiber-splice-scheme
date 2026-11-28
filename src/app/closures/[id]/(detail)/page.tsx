@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { loadClosure } from "@/lib/closure-data";
+import { splicedFiberIds } from "@/lib/editor-data";
 import { CableCard } from "./cable-card";
 import { NewCableDialog } from "./new-cable-dialog";
 import { CassettePanel } from "./cassette-panel";
 import { EmptyState } from "@/components/app-shell";
-import { ensureCableTypeDefaults } from "@/lib/cable-presets";
+import { loadCableTypes } from "@/lib/cable-presets";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -14,24 +15,9 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
   const closure = await loadClosure(id);
   if (!closure) notFound();
 
-  await ensureCableTypeDefaults();
-  const cableTypes = await prisma.cableTypePreset.findMany({
-    orderBy: [{ order: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      name: true,
-      fiberCount: true,
-      moduleCount: true,
-      colorScheme: true,
-      colorOrder: true,
-      moduleColors: true,
-      ownership: true,
-      sheathColor: true,
-      note: true,
-    },
-  });
+  const cableTypes = await loadCableTypes();
 
-  const splicedIds = new Set(closure.splices.flatMap((s) => [s.fiberAId, s.fiberBId]));
+  const splicedIds = splicedFiberIds(closure);
 
   // Справочник муфт объекта — для полей «Откуда/Куда» в диалогах кабеля.
   const siblingClosures = await prisma.closure.findMany({
@@ -78,7 +64,7 @@ export default async function CablesPage({ params }: { params: Promise<{ id: str
             <CableCard
               key={cable.id}
               cable={cable}
-              splicedIds={[...splicedIds]}
+              splicedIds={splicedIds}
               closureId={closure.id}
               closures={siblingClosures}
             />

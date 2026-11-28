@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { hasValidSession } from "@/lib/session";
-import { resolveShareToken, type ResolvedShare } from "@/lib/share";
-import { shareAllowsClosure, shareCanEdit } from "@/lib/share-access";
+import { resolveShareToken, shareAllowsClosureId, type ResolvedShare } from "@/lib/share";
+import { shareCanEdit } from "@/lib/share-access";
 import { decodeGuestCookie, guestCookieName } from "@/lib/guest-name";
 
 export type EditActor =
@@ -29,7 +29,8 @@ export async function resolveEditor(
   if (resolved.status !== "ok") return { error: EDIT_FORBIDDEN };
   const link = resolved.link;
   if (!shareCanEdit(link)) return { error: EDIT_FORBIDDEN };
-  if (!shareAllowsClosure(link, closureId)) return { error: EDIT_FORBIDDEN };
+  // Проверка с объектом муфты: ссылка на объект не должна править чужие муфты.
+  if (!(await shareAllowsClosureId(link, closureId))) return { error: EDIT_FORBIDDEN };
 
   const store = await cookies();
   const name = decodeGuestCookie(store.get(guestCookieName(shareToken))?.value);

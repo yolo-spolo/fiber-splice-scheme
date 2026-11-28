@@ -2,15 +2,15 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { loadClosure } from "@/lib/closure-data";
 import { SpliceDocument } from "@/components/document";
 import { PrintButton } from "@/components/print-button";
 import { GuestClosureEditor } from "@/components/guest-closure-editor";
-import { resolveShareToken, shareAllowsClosure } from "@/lib/share";
+import { loadSharedClosure, resolveShareToken } from "@/lib/share";
 import { shareCanEdit } from "@/lib/share-access";
 import { guestEditorName } from "@/lib/edit-access";
-import { ensureCableTypeDefaults } from "@/lib/cable-presets";
+import { loadCableTypes } from "@/lib/cable-presets";
 import { closureHistory } from "@/lib/history";
+import { toHistoryItem } from "@/lib/history-labels";
 import { closureTitle } from "@/lib/address";
 import { ShareUnavailable } from "../../share-unavailable";
 import { GuestNameForm } from "../../name-form";
@@ -35,17 +35,19 @@ export default async function SharedClosurePage({
   if (resolved.status !== "ok") return <ShareUnavailable status={resolved.status} />;
 
   const { link } = resolved;
-  if (!shareAllowsClosure(link, closureId)) {
-    return <ShareUnavailable status="forbidden" />;
-  }
+  // Загрузка и проверка одним шагом: ссылка на объект не должна открывать
+  // муфту чужого объекта, а раздельные проверки успевали разойтись.
+  const loaded = await loadSharedClosure(link, closureId);
+  if (loaded.status === "notfound") notFound();
+  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" />;
+  const { closure } = loaded;
 
+  // Просмотр считаем только после того, как ссылка действительно открыла
+  // муфту: иначе чужой id накручивал бы счётчик.
   await prisma.shareLink.update({
     where: { id: link.id },
     data: { views: { increment: 1 } },
   });
-
-  const closure = await loadClosure(closureId);
-  if (!closure) notFound();
 
   const canEdit = shareCanEdit(link);
   const guestName = canEdit ? await guestEditorName(token) : null;
@@ -70,23 +72,7 @@ export default async function SharedClosurePage({
 
   if (canEdit) {
     const [cableTypes, siblingClosures, history] = await Promise.all([
-      ensureCableTypeDefaults().then(() =>
-        prisma.cableTypePreset.findMany({
-          orderBy: [{ order: "asc" }, { name: "asc" }],
-          select: {
-            id: true,
-            name: true,
-            fiberCount: true,
-            moduleCount: true,
-            colorScheme: true,
-            colorOrder: true,
-            moduleColors: true,
-            ownership: true,
-            sheathColor: true,
-            note: true,
-          },
-        }),
-      ),
+      loadCableTypes(),
       prisma.closure.findMany({
         where: { projectId: closure.projectId },
         orderBy: { number: "asc" },
@@ -135,14 +121,7 @@ export default async function SharedClosurePage({
             guestName={guestName}
             cableTypes={cableTypes}
             siblingClosures={siblingClosures}
-            history={history.map((event) => ({
-              id: event.id,
-              actorKind: event.actorKind,
-              actorName: event.actorName,
-              action: event.action,
-              summary: event.summary,
-              createdAt: event.createdAt.toISOString(),
-            }))}
+            history={history.map(toHistoryItem)}
             canEdit
           />
         </div>

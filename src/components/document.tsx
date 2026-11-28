@@ -9,15 +9,7 @@ import type { ClosureData } from "@/lib/closure-data";
 import { SpliceScheme } from "@/components/splice-scheme";
 import { ColorLegend } from "@/components/color-legend";
 import { closureKindLabel, formatLatLng, formatPostalAddress } from "@/lib/address";
-import { actorLabel } from "@/lib/history-labels";
-
-export type DocumentHistoryItem = {
-  id: string;
-  actorKind: string;
-  actorName: string;
-  summary: string;
-  createdAt: string;
-};
+import { actorLabel, type HistoryViewItem } from "@/lib/history-labels";
 
 export function SpliceDocument({
   closure,
@@ -40,8 +32,11 @@ export function SpliceDocument({
   legend?: boolean;
   /** Подписи сторон. В папке объекта — один раз в конце, у последней муфты. */
   signatures?: boolean;
-  /** Последние изменения: кто и что поправил, включая правки по ссылке. */
-  history?: DocumentHistoryItem[];
+  /**
+   * Последние изменения: та же запись, что и в списке истории. Документ
+   * берёт из неё нужные поля — своей копии списка полей у него больше нет.
+   */
+  history?: HistoryViewItem[];
 }) {
   const fiberById = new Map(
     closure.cables.flatMap((cable) =>

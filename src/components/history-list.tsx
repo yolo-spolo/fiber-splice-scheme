@@ -2,18 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { restoreEvent } from "@/lib/actions/history";
-import { actorLabel } from "@/lib/history-labels";
-
-export type HistoryItem = {
-  id: string;
-  actorKind: string;
-  actorName: string;
-  action: string;
-  actionLabel: string;
-  summary: string;
-  createdAt: string;
-  restorable: boolean;
-};
+import { actorLabel, type HistoryViewItem } from "@/lib/history-labels";
 
 /**
  * Список изменений муфты: свежие сверху. Общий для владельца и гостя —
@@ -25,7 +14,7 @@ export function HistoryList({
   canRestore = false,
   emptyText = "Изменений пока нет. Они появятся, как только вы поправите кабель, сварку или параметры муфты.",
 }: {
-  events: HistoryItem[];
+  events: HistoryViewItem[];
   canRestore?: boolean;
   emptyText?: string;
 }) {

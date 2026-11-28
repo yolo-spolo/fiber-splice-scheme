@@ -2,10 +2,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { resolveShareToken } from "@/lib/share";
+import { loadSharedClosure, resolveShareToken } from "@/lib/share";
 import { shareCanEdit } from "@/lib/share-access";
 import { prisma } from "@/lib/prisma";
-import { loadClosure } from "@/lib/closure-data";
 import { SpliceDocument } from "@/components/document";
 import { PrintButton } from "@/components/print-button";
 import { closureKindLabel, closureTitle } from "@/lib/address";
@@ -93,8 +92,10 @@ export default async function SharePage({ params }: { params: Promise<{ token: s
     );
   }
 
-  const closure = await loadClosure(closureId);
-  if (!closure) notFound();
+  const loaded = await loadSharedClosure(link, closureId);
+  if (loaded.status === "notfound") notFound();
+  if (loaded.status === "forbidden") return <ShareUnavailable status="forbidden" />;
+  const { closure } = loaded;
 
   // Публичная схема для заказчика — всегда светлая, независимо от темы исполнителя.
   return (

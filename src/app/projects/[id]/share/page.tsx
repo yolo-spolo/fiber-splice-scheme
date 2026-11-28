@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/session";
 import { SharePanel } from "@/components/share-panel";
 import { AppShell } from "@/components/app-shell";
 import { closureTitle } from "@/lib/address";
+import { shareBaseUrl } from "@/lib/base-url";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +35,6 @@ export default async function ProjectSharePage({ params }: { params: Promise<{ i
   });
 
   const closureById = new Map(project.closures.map((closure) => [closure.id, closure]));
-  const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-
   return (
     <AppShell
       breadcrumbs={[
@@ -52,7 +51,7 @@ export default async function ProjectSharePage({ params }: { params: Promise<{ i
       </div>
       <div className="max-w-[860px]">
         <SharePanel
-          baseUrl={baseUrl}
+          baseUrl={shareBaseUrl()}
           projectId={project.id}
           closures={project.closures.map((closure) => ({
             id: closure.id,

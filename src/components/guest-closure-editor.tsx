@@ -13,7 +13,9 @@ import { PhotoManager } from "@/app/closures/[id]/(detail)/photos/photo-manager"
 import { closureKindLabel, closureTitle, formatLatLng, formatPostalAddress } from "@/lib/address";
 import { STATUS_LABELS } from "@/lib/labels";
 import { fiberStats, type ClosureData } from "@/lib/closure-data";
-import { actorLabel } from "@/lib/history-labels";
+import { actorLabel, type HistoryViewItem } from "@/lib/history-labels";
+import { closureEditorData, splicedFiberIds, type ClosureEditorData } from "@/lib/editor-data";
+import type { CableTypeOption } from "@/lib/cable-presets";
 
 type Tab = "cables" | "splice" | "photos" | "history";
 
@@ -41,18 +43,7 @@ export function GuestClosureEditor({
   token: string;
   closure: ClosureData;
   guestName: string | null;
-  cableTypes: {
-    id: string;
-    name: string;
-    fiberCount: number;
-    moduleCount: number;
-    colorScheme: string;
-    colorOrder: number[];
-    moduleColors?: number[];
-    ownership: string;
-    sheathColor: string | null;
-    note: string | null;
-  }[];
+  cableTypes: CableTypeOption[];
   siblingClosures: {
     id: string;
     number: string;
@@ -62,19 +53,15 @@ export function GuestClosureEditor({
     house: string | null;
     projectId: string;
   }[];
-  history: {
-    id: string;
-    actorKind: string;
-    actorName: string;
-    action: string;
-    summary: string;
-    createdAt: string;
-  }[];
+  history: HistoryViewItem[];
   canEdit: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("cables");
   const stats = fiberStats(closure);
-  const splicedIds = new Set(closure.splices.flatMap((s) => [s.fiberAId, s.fiberBId]));
+  const splicedIds = splicedFiberIds(closure);
+  // Пропсы редакторов собирает общий модуль: раньше эта проводка была
+  // скопирована сюда из страниц владельца и расходилась с ними.
+  const editor: ClosureEditorData = closureEditorData(closure);
   const coordinates = formatLatLng(closure.lat, closure.lng);
 
   return (
@@ -146,7 +133,7 @@ export function GuestClosureEditor({
                 <CableCard
                   key={cable.id}
                   cable={cable}
-                  splicedIds={[...splicedIds]}
+                  splicedIds={splicedIds}
                   closureId={closure.id}
                   closures={siblingClosures}
                 />
@@ -155,8 +142,8 @@ export function GuestClosureEditor({
           )}
           <CassettePanel
             closureId={closure.id}
-            cassettes={closure.cassettes}
-            splices={closure.splices.map((s) => ({ id: s.id, cassetteId: s.cassetteId }))}
+            cassettes={editor.cassettes}
+            splices={editor.splices.map((s) => ({ id: s.id, cassetteId: s.cassetteId }))}
           />
         </div>
       )}
@@ -164,52 +151,17 @@ export function GuestClosureEditor({
       {tab === "splice" && (
         <SpliceEditor
           closureId={closure.id}
-          cables={closure.cables.map((cable) => ({
-            id: cable.id,
-            label: cable.label,
-            type: cable.type,
-            ownership: cable.ownership,
-            moduleCount: cable.moduleCount,
-            colorScheme: cable.colorScheme,
-            moduleColors: cable.moduleColors,
-            fibers: cable.fibers.map((f) => ({
-              id: f.id,
-              moduleIndex: f.moduleIndex,
-              position: f.position,
-              colorCode: f.colorCode,
-              label: f.label,
-              status: f.status,
-            })),
-          }))}
-          cassettes={closure.cassettes.map((c) => ({
-            id: c.id,
-            number: c.number,
-            capacity: c.capacity,
-            label: c.label,
-          }))}
-          splices={closure.splices.map((s) => ({
-            id: s.id,
-            fiberAId: s.fiberAId,
-            fiberBId: s.fiberBId,
-            cassetteId: s.cassetteId,
-            kind: s.kind,
-            lossDb: s.lossDb,
-          }))}
+          cables={editor.cables}
+          cassettes={editor.cassettes}
+          splices={editor.splices}
         />
       )}
 
       {tab === "photos" && (
         <PhotoManager
           closureId={closure.id}
-          cassettes={closure.cassettes.map((c) => ({ id: c.id, number: c.number, label: c.label }))}
-          photos={closure.photos.map((p) => ({
-            id: p.id,
-            file: p.file,
-            thumb: p.thumb,
-            caption: p.caption,
-            cassetteId: p.cassetteId,
-            pins: p.pins as { x: number; y: number; refType: string; refId: string; label: string }[],
-          }))}
+          cassettes={editor.cassettes}
+          photos={editor.photos}
         />
       )}
 

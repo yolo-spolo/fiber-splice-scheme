@@ -6,28 +6,34 @@
 
 export type ShareMode = "READ" | "EDIT";
 
-/** Поля ссылки, от которых зависят права. Остальное — для вывода. */
+/**
+ * Поля ссылки, от которых зависят права. Остальное — для вывода.
+ *
+ * `projectId` — объект ссылки: свой у ссылки на объект, родительский у ссылки
+ * на муфту (`resolveShareToken` кладёт его из `link.closure.project.id`).
+ * Без него ссылка на муфту не отвечает на вопрос «а к какому объекту».
+ */
 export type ShareScope = {
   projectId: string | null;
   closureId: string | null;
   mode: ShareMode;
-  /** Объект муфты: у ссылки на муфту своего projectId нет. */
-  closureProjectId?: string | null;
 };
 
-/**
- * Объект, к которому даёт доступ ссылка. Ссылка на муфту открывает только её,
- * ссылка на объект — все муфты этого объекта: иначе гость по ссылке на объект
- * не смог бы открыть ни одной схемы.
- */
-export function shareProjectId(link: ShareScope): string | null {
-  return link.projectId ?? link.closureProjectId ?? null;
-}
+/** Муфта, которую пытаются открыть по ссылке. */
+export type ClosureRef = { id: string; projectId: string };
 
-/** Можно ли этой ссылкой открыть конкретную муфту. */
-export function shareAllowsClosure(link: ShareScope, closureId: string): boolean {
-  if (link.closureId) return link.closureId === closureId;
-  return Boolean(link.projectId);
+/**
+ * Можно ли этой ссылкой открыть конкретную муфту.
+ *
+ * Муфта приходит целиком, вместе со своим объектом, и это не случайность:
+ * проверка «у ссылки есть projectId» сама по себе открывала муфту любого
+ * объекта, стоило подставить чужой id. Обязательный аргумент не даёт
+ * забыть про объект — компилятор поймает вызов с одним id.
+ */
+export function shareAllowsClosure(link: ShareScope, closure: ClosureRef): boolean {
+  if (link.closureId) return link.closureId === closure.id;
+  if (!link.projectId) return false;
+  return closure.projectId === link.projectId;
 }
 
 /** Ссылка с правом правки. Проверять на сервере в каждом действии гостя. */

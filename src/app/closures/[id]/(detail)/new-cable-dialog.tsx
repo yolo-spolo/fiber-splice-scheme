@@ -13,6 +13,7 @@ import { cableLayout } from "@/lib/cable-layout";
 import { ClosurePicker } from "@/components/closure-picker";
 import type { ClosureOption } from "@/lib/cable-endpoints";
 import { useShareToken } from "@/components/edit-scope";
+import type { CableTypeOption } from "@/lib/cable-presets";
 
 export function NewCableDialog({
   closureId,
@@ -22,18 +23,7 @@ export function NewCableDialog({
 }: {
   closureId: string;
   trigger?: string;
-  cableTypes: {
-    id: string;
-    name: string;
-    fiberCount: number;
-    moduleCount: number;
-    colorScheme: string;
-    colorOrder: number[];
-    moduleColors?: number[];
-    ownership: string;
-    sheathColor: string | null;
-    note: string | null;
-  }[];
+  cableTypes: CableTypeOption[];
   closures?: ClosureOption[];
 }) {
   const [open, setOpen] = useState(false);

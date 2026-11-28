@@ -7,6 +7,7 @@ import { SpliceDocument } from "@/components/document";
 import { ProjectCover } from "@/components/project-document";
 import { PrintButton } from "@/components/print-button";
 import { requireSession } from "@/lib/session";
+import { shareLinkUrl } from "@/lib/base-url";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,7 @@ export default async function ProjectPrintPage({ params }: { params: Promise<{ i
     where: { projectId: project.id, revokedAt: null },
     orderBy: { createdAt: "desc" },
   });
-  const baseUrl = process.env.APP_URL ?? "http://localhost:3000";
-  const shareUrl = share ? `${baseUrl}/s/${share.token}` : undefined;
+  const shareUrl = share ? shareLinkUrl(share.token) : undefined;
   const qrDataUrl = shareUrl
     ? await QRCode.toDataURL(shareUrl, { margin: 0, width: 220 })
     : undefined;
