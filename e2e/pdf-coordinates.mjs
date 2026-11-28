@@ -2,12 +2,11 @@
 // PDF (Chromium печатает в файл — так видно, что попало на бумагу).
 // Запуск: /opt/node/bin/node e2e/pdf-coordinates.mjs
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
-const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
-const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
+// Адрес, пароль и каталог снимков — из e2e/env.mjs: в CI .env нет.
+import { BASE, readPassword, seedProject, SHOTS } from "./env.mjs";
+const password = readPassword();
 const COORD_RE = /\d{2,3}\.\d+,\s*-?\d{2,3}\.\d+/;
 
 const browser = await chromium.launch();
@@ -42,26 +41,21 @@ async function signIn(page) {
 // Муфта с координатами — та, что правили на этапе 1.
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
 await signIn(page);
-await page.goto(BASE);
-await page.waitForLoadState("networkidle");
-const projectHref = await page.locator('a[href^="/projects/"]').first().getAttribute("href");
-await page.goto(`${BASE}${projectHref}`);
-await page.waitForLoadState("networkidle");
-const closureHref = await page.locator('a[href^="/closures/"]').first().getAttribute("href");
+const { projectHref, closureHref } = await seedProject(page, BASE);
 
 // 1. Документ муфты.
 await page.goto(`${BASE}${closureHref}/print`);
 await page.waitForLoadState("networkidle");
 const docText = await page.locator("article.document").first().innerText();
 check("координаты есть в документе муфты", COORD_RE.test(docText), docText.match(COORD_RE)?.[0] ?? "нет");
-await shot(page, "/tmp/opencode/pdf-closure.png");
+await shot(page, `${SHOTS}/pdf-closure.png`);
 
 // 2. Документ объекта: титул с составом.
 await page.goto(`${BASE}${projectHref}/print`);
 await page.waitForLoadState("networkidle");
 const coverText = await page.locator("article.document-cover").first().innerText();
 check("координаты есть в составе объекта", COORD_RE.test(coverText), coverText.match(COORD_RE)?.[0] ?? "нет");
-await shot(page, "/tmp/opencode/pdf-cover.png");
+await shot(page, `${SHOTS}/pdf-cover.png`);
 
 // 3. Эмуляция печати на узком вьюпорте: телефон/планшет — там ломалась печать.
 const phone = await browser.newPage({
@@ -73,7 +67,7 @@ await signIn(phone);
 await phone.emulateMedia({ media: "print" });
 await phone.goto(`${BASE}${closureHref}/print`);
 await phone.waitForLoadState("networkidle");
-await shot(phone, "/tmp/opencode/pdf-phone-print.png");
+await shot(phone, `${SHOTS}/pdf-phone-print.png`);
 const phoneText = await phone.locator("article.document").first().innerText();
 check("в печатной версии на телефоне координаты видны", COORD_RE.test(phoneText));
 // Сам лист в печати шире окна телефона — так и задумано (188 мм). Проверяем,
@@ -84,11 +78,11 @@ const overflow = await phone.evaluate(() => {
   return doc.scrollWidth - doc.clientWidth;
 });
 check("внутри листа нет горизонтального переполнения", overflow >= 0 && overflow <= 1, `${overflow}px`);
-await phone.screenshot({ path: "/tmp/opencode/pdf-phone.png", fullPage: false });
+await phone.screenshot({ path: `${SHOTS}/pdf-phone.png`, fullPage: false });
 
 // 4. Настоящий PDF: координаты должны попасть в текстовый слой файла.
 // Поток PDF сжат, поэтому текст достаём pdftotext, а не поиском по байтам.
-const pdfPath = "/tmp/opencode/doc-coordinates.pdf";
+const pdfPath = `${SHOTS}/doc-coordinates.pdf`;
 const pdf = await page.pdf({ format: "A4", printBackground: true, path: pdfPath });
 check("PDF собрался", pdf.length > 20_000, `${Math.round(pdf.length / 1024)} КБ`);
 const pdfText = execFileSync("pdftotext", ["-layout", pdfPath, "-"], { encoding: "utf8" });

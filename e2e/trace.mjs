@@ -3,11 +3,10 @@
 //
 // Сценарий ничего не меняет в базе: он только читает схему и строит маршрут.
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
 
-// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
-const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
-const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
+// Адрес, пароль и каталог снимков — из e2e/env.mjs: в CI .env нет.
+import { BASE, readPassword, seedProject, SHOTS } from "./env.mjs";
+const password = readPassword();
 
 const browser = await chromium.launch();
 let failures = 0;
@@ -30,12 +29,7 @@ if (await page.locator('input[name="repeat"]').count()) {
 await page.click('button[type="submit"]');
 await page.waitForLoadState("networkidle");
 
-await page.goto(BASE);
-await page.waitForLoadState("networkidle");
-const projectHref = await page.locator('a[href^="/projects/"]').first().getAttribute("href");
-await page.goto(`${BASE}${projectHref}`);
-await page.waitForLoadState("networkidle");
-const closureHref = await page.locator('a[href^="/closures/"]').first().getAttribute("href");
+const { closureHref } = await seedProject(page, BASE);
 
 // Вкладка трассы есть в карточке муфты.
 await page.goto(`${BASE}${closureHref}`);
@@ -64,7 +58,7 @@ if (values.length > 0) {
     /начало:/i.test(text) && /конец:/i.test(text),
   );
   check("в маршруте есть шаги", /№\d+/.test(text));
-  await page.screenshot({ path: "/tmp/opencode/trace.png", fullPage: false });
+  await page.screenshot({ path: `${SHOTS}/trace.png`, fullPage: false });
 }
 
 // Из карточки волокна тоже можно уйти в трассу — там и возникает вопрос.

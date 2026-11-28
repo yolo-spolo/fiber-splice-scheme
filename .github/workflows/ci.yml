@@ -64,3 +64,119 @@ jobs:
 
       - name: Сборка
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Сценарии идут по очереди на одной базе и одном сервере: это минуты, а не
+    # секунды. Параллелить их нельзя — они меняют общие данные.
+    needs: check
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fiber
+          POSTGRES_PASSWORD: fiber
+          POSTGRES_DB: fiber
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fiber -d fiber"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://fiber:fiber@localhost:5432/fiber?schema=public
+      # Пароль владельца: сценарии читают его из окружения, .env в CI нет.
+      AUTH_PASSWORD: ci-password
+      AUTH_SECRET: ci-secret-not-used-in-production
+      APP_URL: http://127.0.0.1:3000
+      BASE_URL: http://127.0.0.1:3000
+      SHOTS_DIR: /tmp/shots
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Установка зависимостей
+        run: npm ci
+
+      - name: Схема БД
+        run: npx prisma db push
+
+      # pdftotext нужен двум сценариям: они проверяют текст готового PDF.
+      - name: Системные утилиты
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
+      - name: Сборка
+        run: npm run build
+
+      - name: Браузер
+        run: npx playwright install --with-deps chromium
+
+      - name: Запуск приложения
+        # NODE_ENV только здесь: на уровне job он заставил бы `npm ci` не
+        # ставить devDependencies, и не было бы ни prisma, ни playwright.
+        env:
+          NODE_ENV: production
+        run: |
+          mkdir -p "$SHOTS_DIR"
+          npx next start -H 127.0.0.1 -p 3000 > /tmp/server.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/login; then
+              echo "сервер отвечает"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::сервер не поднялся за 120 секунд"
+          cat /tmp/server.log
+          exit 1
+
+      # Порядок важен: сценарии меняют одну базу, и каждый следующий видит
+      # работу предыдущего. `cold-start` идёт первым и на пустой базе — там он
+      # заодно проходит мастер первого запуска. Остальным нужны данные сида,
+      # поэтому он засевается после.
+      - name: "E2E: создание с нуля"
+        run: node e2e/cold-start.mjs
+
+      - name: Данные для остальных сценариев
+        run: npm run db:seed
+
+      - name: "E2E: объект, кабели, сварка, документ"
+        run: node e2e/flow.mjs
+
+      - name: "E2E: фото и публичная ссылка"
+        run: node e2e/share.mjs
+
+      - name: "E2E: координаты, ссылки, гостевая правка"
+        run: |
+          node e2e/coordinates.mjs
+          node e2e/copy-link.mjs
+          node e2e/share-scope.mjs
+          node e2e/guest-edit.mjs
+
+      - name: "E2E: подписи, PDF и трасса"
+        run: |
+          node e2e/fiber-label.mjs
+          node e2e/pdf-coordinates.mjs
+          node e2e/trace.mjs
+
+      # Снимки и лог сервера нужны только когда что-то упало: на зелёном
+      # прогоне это мусор в артефактах.
+      - name: Снимки и лог сервера
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failure
+          path: |
+            /tmp/shots
+            /tmp/server.log
+          retention-days: 5
+          if-no-files-found: ignore

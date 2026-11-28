@@ -2,11 +2,10 @@
 // navigator.clipboard отсутствует (живой сайт живёт без TLS).
 // Запуск: BASE_URL=http://127.0.0.1:3100 /opt/node/bin/node e2e/copy-link.mjs
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
 
-// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
-const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
-const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
+// Адрес, пароль и каталог снимков — из e2e/env.mjs: в CI .env нет.
+import { BASE, readPassword, seedProject, SHOTS } from "./env.mjs";
+const password = readPassword();
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
@@ -31,12 +30,7 @@ const secure = await page.evaluate(() => window.isSecureContext);
 const hasClipboard = await page.evaluate(() => Boolean(navigator.clipboard));
 console.log(`   isSecureContext=${secure} clipboard=${hasClipboard}`);
 
-await page.goto(BASE);
-await page.waitForLoadState("networkidle");
-const projectHref = await page.locator('a[href^="/projects/"]').first().getAttribute("href");
-await page.goto(`${BASE}${projectHref}`);
-await page.waitForLoadState("networkidle");
-const closureHref = await page.locator('a[href^="/closures/"]').first().getAttribute("href");
+const { closureHref } = await seedProject(page, BASE);
 
 await page.goto(`${BASE}${closureHref}/share`);
 await page.waitForLoadState("networkidle");
@@ -59,7 +53,7 @@ check("нет исключений в консоли", pageErrors.length === 0, 
 
 const value = await page.locator('input[aria-label="Ссылка для заказчика"]').first().inputValue();
 check("ссылка ведёт на этот же хост", value.startsWith(BASE), value);
-await page.screenshot({ path: "/tmp/opencode/copy-link.png" });
+await page.screenshot({ path: `${SHOTS}/copy-link.png` });
 
 // Настоящая проверка буфера: вставляем в пустое поле сочетанием клавиш.
 await page.evaluate(() => {
@@ -113,7 +107,7 @@ const selected = await blockedPage.evaluate(() => {
   return field.selectionStart === 0 && field.selectionEnd === field.value.length && field.value.length > 0;
 });
 check("ссылка выделена целиком", selected);
-await blockedPage.screenshot({ path: "/tmp/opencode/copy-link-fallback.png", fullPage: true });
+await blockedPage.screenshot({ path: `${SHOTS}/copy-link-fallback.png`, fullPage: true });
 await blocked.close();
 
 await browser.close();

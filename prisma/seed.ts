@@ -3,6 +3,8 @@ import { colorCodeForPosition } from "../src/lib/colors";
 
 const prisma = new PrismaClient();
 
+const PROJECT_NAME = "ЖК «Северный», корпус 3";
+
 async function addCable(
   closureId: string,
   label: string,
@@ -38,15 +40,18 @@ async function addCable(
 }
 
 async function main() {
-  const existing = await prisma.project.count();
-  if (existing > 0) {
-    console.log("Данные уже есть — сид пропущен");
+  // Проверяем именно свой объект, а не «есть ли вообще объекты». Иначе после
+  // любого сценария, создавшего объект (cold-start), сид молча пропускался бы,
+  // и e2e оставались без данных, на которые рассчитаны.
+  const existing = await prisma.project.findFirst({ where: { name: PROJECT_NAME } });
+  if (existing) {
+    console.log(`Объект «${PROJECT_NAME}» уже есть — сид пропущен`);
     return;
   }
 
   const project = await prisma.project.create({
     data: {
-      name: "ЖК «Северный», корпус 3",
+      name: PROJECT_NAME,
       customer: "ООО «Ромашка»",
       address: "г. Москва, ул. Полярная, 12",
       contract: "№ 14/2026",
@@ -78,6 +83,23 @@ async function main() {
 
   const trunk = await addCable(closure.id, "К1", "ОК-М", 24, 0, "ОРШ-3", "Колодец К-14");
   const drop = await addCable(closure.id, "К2", "ОК-Л", 12, 1, "Колодец К-14", "Подъезд 2");
+
+  // Вторая муфта нужна сценариям ссылок: они проверяют, что ссылка на одну
+  // муфту не открывает другую, а ссылка на объект открывает обе.
+  const second = await prisma.closure.create({
+    data: {
+      projectId: project.id,
+      number: "13",
+      kind: "МУФТА",
+      model: "СТ-МТОК-48",
+      city: "Москва",
+      street: "Полярная",
+      house: "14",
+      status: "DRAFT",
+      cassettes: { create: [{ number: 1, capacity: 12 }] },
+    },
+  });
+  await addCable(second.id, "К1", "ОК-Л", 8, 0, "Муфта №12", "Подъезд 1");
 
   const cassette = closure.cassettes[0];
   const pairs = 12;

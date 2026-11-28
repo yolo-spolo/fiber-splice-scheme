@@ -2,11 +2,10 @@
 // границы доступа и файлы по токену.
 // Запуск: /opt/node/bin/node e2e/share-scope.mjs
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
 
-// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
-const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
-const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
+// Адрес, пароль и каталог снимков — из e2e/env.mjs: в CI .env нет.
+import { BASE, readPassword, seedProject, SHOTS } from "./env.mjs";
+const password = readPassword();
 
 const browser = await chromium.launch();
 let failures = 0;
@@ -27,9 +26,7 @@ await page.click('button[type="submit"]');
 await page.waitForLoadState("networkidle");
 
 // Объект с несколькими муфтами: на нём и проверим обе области ссылки.
-await page.goto(BASE);
-await page.waitForLoadState("networkidle");
-const projectHref = await page.locator('a[href^="/projects/"]').first().getAttribute("href");
+const { projectHref } = await seedProject(page, BASE);
 const projectId = projectHref.split("/").pop();
 await page.goto(`${BASE}/projects/${projectId}/share`);
 await page.waitForLoadState("networkidle");
@@ -108,7 +105,7 @@ await guest.goto(projectUrl);
 await guest.waitForLoadState("networkidle");
 const closureLinks = await guest.locator('a[href*="/closure/"]').count();
 check("в объекте есть муфты-ссылки", closureLinks > 1, String(closureLinks));
-await guest.screenshot({ path: "/tmp/opencode/share-project.png", fullPage: true });
+await guest.screenshot({ path: `${SHOTS}/share-project.png`, fullPage: true });
 
 const firstClosureHref = await guest.locator('a[href*="/closure/"]').first().getAttribute("href");
 const firstClosureId = firstClosureHref.split("/").pop();
@@ -119,7 +116,7 @@ const otherClosureId = secondClosureHref.split("/").pop();
 await guest.goto(`${BASE}${firstClosureHref}`);
 await guest.waitForLoadState("networkidle");
 check("схема муфты открывается из объекта", (await guest.locator("article.document").count()) > 0);
-await guest.screenshot({ path: "/tmp/opencode/share-closure.png", fullPage: false });
+await guest.screenshot({ path: `${SHOTS}/share-closure.png`, fullPage: false });
 
 // Ссылка на муфту не должна открывать другую муфту того же объекта.
 const closureToken = closureUrl.split("/s/")[1];

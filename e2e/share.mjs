@@ -5,11 +5,9 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
-const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
-const PASSWORD = process.env.AUTH_PASSWORD;
-const OUT = process.env.SHOTS_DIR ?? "e2e/screenshots";
-if (!PASSWORD) throw new Error("Задайте AUTH_PASSWORD — пароль, которым вы входите в приложение");
+// Адрес, пароль и каталог снимков — из e2e/env.mjs: в CI .env нет.
+import { BASE, readPassword, SHOTS as OUT } from "./env.mjs";
+const PASSWORD = readPassword();
 
 await mkdir(OUT, { recursive: true });
 
@@ -60,16 +58,25 @@ await page.screenshot({ path: `${OUT}/13-photos-saved.png`, fullPage: true });
 
 console.log("→ публичная ссылка");
 await page.goto(`${BASE}/closures/${closureId}/share`);
+const linksBefore = await page.locator('input[aria-label="Ссылка для заказчика"]').count();
 await page.click('button:has-text("Создать ссылку")');
-await page.waitForSelector("text=/s/", { timeout: 15000 });
+// Ссылка выводится в поле только для чтения, а не текстом: ждём появления
+// новой строки, а не «текста со /s/» — значения input в текст страницы не входят.
+await page.waitForFunction(
+  (count) => document.querySelectorAll('input[aria-label="Ссылка для заказчика"]').length > count,
+  linksBefore,
+  { timeout: 20_000 },
+);
 await page.screenshot({ path: `${OUT}/14-share.png`, fullPage: true });
-const shareUrl = await page.locator("li .font-mono").first().innerText();
-console.log(`   ссылка: ${shareUrl.trim()}`);
+const shareUrl = (
+  await page.locator('input[aria-label="Ссылка для заказчика"]').first().inputValue()
+).trim();
+console.log(`   ссылка: ${shareUrl}`);
 
 console.log("→ проверка публичной ссылки без авторизации");
 const anon = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const anonPage = await anon.newPage();
-const res = await anonPage.goto(shareUrl.trim());
+const res = await anonPage.goto(shareUrl);
 console.log(`   статус: ${res.status()}`);
 const imagesOk = await anonPage.evaluate(() =>
   Array.from(document.images).map((i) => ({ src: i.src, ok: i.complete && i.naturalWidth > 0 })),

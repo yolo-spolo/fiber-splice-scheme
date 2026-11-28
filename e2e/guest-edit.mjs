@@ -2,11 +2,10 @@
 // история и запрет правки по ссылке «только чтение».
 // Запуск: /opt/node/bin/node e2e/guest-edit.mjs
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
 
-// Адрес задаётся BASE_URL; E2E_BASE — старое имя, ещё принимается.
-const BASE = process.env.BASE_URL ?? process.env.E2E_BASE ?? "http://127.0.0.1:3100";
-const password = /^AUTH_PASSWORD="?([^"\n]*)"?/m.exec(readFileSync(".env", "utf8"))?.[1];
+// Адрес, пароль и каталог снимков — из e2e/env.mjs: в CI .env нет.
+import { BASE, readPassword, seedProject, SHOTS } from "./env.mjs";
+const password = readPassword();
 
 const browser = await chromium.launch();
 // Dev-сервер компилирует страницы на первом заходе — это десятки секунд.
@@ -31,12 +30,7 @@ if (await owner.locator('input[name="repeat"]').count()) {
 await owner.click('button[type="submit"]');
 await owner.waitForLoadState("networkidle");
 
-await owner.goto(BASE);
-await owner.waitForLoadState("networkidle");
-const projectHref = await owner.locator('a[href^="/projects/"]').first().getAttribute("href");
-await owner.goto(`${BASE}${projectHref}`);
-await owner.waitForLoadState("networkidle");
-const closureHref = await owner.locator('a[href^="/closures/"]').first().getAttribute("href");
+const { closureHref } = await seedProject(owner, BASE);
 
 await owner.goto(`${BASE}${closureHref}/share`);
 await owner.waitForLoadState("networkidle");
@@ -84,7 +78,7 @@ const editorReady = await g
   .catch(() => false);
 check("после имени открылся редактор", editorReady);
 check("имя видно в шапке", (await g.locator("text=Сергей Монтажник").count()) > 0);
-await g.screenshot({ path: "/tmp/opencode/guest-editor.png", fullPage: false });
+await g.screenshot({ path: `${SHOTS}/guest-editor.png`, fullPage: false });
 
 // 2. Гость меняет статус муфты и параметры кабеля.
 await g.locator("select").first().selectOption("IN_PROGRESS");
@@ -109,7 +103,7 @@ const guestSeen = await g
 const historyText = await g.locator("body").innerText();
 check("в истории есть гость", guestSeen, historyText.slice(0, 200));
 check("в истории есть правка заметок", historyText.includes("заметки"), historyText.slice(0, 300));
-await g.screenshot({ path: "/tmp/opencode/guest-history.png", fullPage: false });
+await g.screenshot({ path: `${SHOTS}/guest-history.png`, fullPage: false });
 
 // 3b. «Вся история» гостя: страница открывается, возврата на ней нет.
 await g.getByRole("link", { name: "Вся история" }).click();
@@ -124,7 +118,7 @@ check(
   "гостевая история видит правки гостя",
   (await g.locator("text=Сергей Монтажник (по ссылке)").count()) > 0,
 );
-await g.screenshot({ path: "/tmp/opencode/guest-full-history.png", fullPage: false });
+await g.screenshot({ path: `${SHOTS}/guest-full-history.png`, fullPage: false });
 
 // 4. Ссылка «только чтение» редактора не даёт.
 const viewer = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -152,7 +146,7 @@ const restored = await owner
   .then(() => true)
   .catch(() => false);
 check("возврат записан в историю", restored);
-await owner.screenshot({ path: "/tmp/opencode/owner-history.png", fullPage: true });
+await owner.screenshot({ path: `${SHOTS}/owner-history.png`, fullPage: true });
 
 await browser.close();
 process.exit(failures ? 1 : 0);

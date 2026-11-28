@@ -39,6 +39,15 @@ export function SpliceEditor({
   const [colorTarget, setColorTarget] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
   const [labelError, setLabelError] = useState<string | null>(null);
+  /**
+   * Жила, которую открыли, чтобы только подписать.
+   *
+   * Сваренную жилу нельзя выбрать для сварки — клик по ней сообщает об этом.
+   * Но подписать её нужно: абонент подключён, и подпись как раз про него.
+   * Раньше единственным способом было удалить сварку, подписать и сварить
+   * заново — то есть испортить схему ради подписи.
+   */
+  const [labelTarget, setLabelTarget] = useState<string | null>(null);
 
   const fiberIndex = useMemo(() => {
     const map = new Map<string, FiberRef>();
@@ -94,9 +103,12 @@ export function SpliceEditor({
     setLabelError(null);
     setLabelDraft(fibersById.get(fiberId)?.label ?? "");
     if (splicedFiberIds.has(fiberId)) {
-      setError(`${describe(fiberId)} уже сварено. Сначала удалите сварку в списке.`);
+      // Сваренная жила: сварить её второй раз нельзя, но подписать — можно.
+      setSelectedA(null);
+      setLabelTarget(fiberId);
       return;
     }
+    setLabelTarget(null);
     if (!selectedA) {
       setSelectedA(fiberId);
       return;
@@ -341,12 +353,27 @@ export function SpliceEditor({
               <li>2. Нажмите волокно во втором — сварка создастся</li>
             </ol>
 
-            <div className="space-y-1.5">
-              <SelectedSlot label="Волокно A" text={selectedA ? describe(selectedA) : null} />
-              <SelectedSlot label="Волокно B" text={null} />
-            </div>
-
-            {selectedA && (
+            {/* Открытая жила: либо выбранная для сварки, либо уже сваренная —
+                её открывают, чтобы подписать. */}
+            {(() => {
+              const active = selectedA ?? labelTarget;
+              if (!active) {
+                return (
+                  <div className="space-y-1.5">
+                    <SelectedSlot label="Волокно A" text={null} />
+                    <SelectedSlot label="Волокно B" text={null} />
+                  </div>
+                );
+              }
+              return (
+                <>
+                  <div className="space-y-1.5">
+                    <SelectedSlot
+                      label={selectedA ? "Волокно A" : "Сварено"}
+                      text={describe(active)}
+                    />
+                    {selectedA && <SelectedSlot label="Волокно B" text={null} />}
+                  </div>
               <div className="mt-2 space-y-1.5">
                 {/* Подпись — прямо у выбранного волокна: чаще всего именно
                     за ней волокно и открывают. */}
@@ -361,7 +388,7 @@ export function SpliceEditor({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        saveLabel(selectedA);
+                        saveLabel(active);
                       }
                     }}
                   />
@@ -371,7 +398,7 @@ export function SpliceEditor({
                     type="button"
                     className="btn btn-ghost px-2 py-0.5 text-[11.5px]"
                     disabled={pending}
-                    onClick={() => saveLabel(selectedA)}
+                    onClick={() => saveLabel(active)}
                   >
                     Сохранить подпись
                   </button>
@@ -382,7 +409,7 @@ export function SpliceEditor({
                 <button
                   type="button"
                   className="btn btn-ghost w-full py-1.5 text-[12.5px]"
-                  onClick={() => setColorTarget(selectedA)}
+                  onClick={() => setColorTarget(active)}
                 >
                   Изменить цвет жилы
                 </button>
@@ -391,13 +418,16 @@ export function SpliceEditor({
                   className="btn btn-ghost w-full py-1.5 text-[12.5px]"
                   onClick={() => {
                     setSelectedA(null);
+                    setLabelTarget(null);
                     setLabelDraft("");
                   }}
                 >
                   Сбросить выбор
                 </button>
               </div>
-            )}
+                </>
+              );
+            })()}
 
             {colorTarget && (
               <div className="mt-2">
